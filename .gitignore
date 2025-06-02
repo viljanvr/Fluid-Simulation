@@ -1,0 +1,9 @@
+# Build directories
+cmake-build-debug/
+
+# vscode settings
+.vscode/
+.cache/
+
+# CLion settings
+.idea/

@@ -1,5 +1,0 @@
-# ninja log v6
-13	62	7705821304561959	CMakeFiles/FluidSim.dir/code/solver.c.obj	ff0d1380fe78bab0
-10	365	7705821304526937	CMakeFiles/FluidSim.dir/code/demo.c.obj	334a9406f4177f02
-3	215	7705822159756967	build.ninja	d540a7afbbf23121
-2	357	7705822159756967	build.ninja	d540a7afbbf23121
