@@ -1,5 +1,6 @@
 # Build directories
 cmake-build-debug/
+build/
 
 # vscode settings
 .vscode/
@@ -7,3 +8,6 @@ cmake-build-debug/
 
 # CLion settings
 .idea/
+
+# MacOS files
+.DS_Store
