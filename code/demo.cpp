@@ -15,8 +15,13 @@
 */
 
 #include <cctype>
+#include <cmath>
+#include <iostream>
+#include <ostream>
 #include <stdio.h>
 #include <stdlib.h>
+#include "jet_colormap.h"
+#include "viridis_colormap.h"
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include <GLUT/glut.h>
@@ -47,6 +52,8 @@ static int win_id;
 static int win_x, win_y;
 static int mouse_down[3];
 static int omx, omy, mx, my;
+
+static float (*colormap)[3] = jet_colormap;
 
 /*
   ----------------------------------------------------------------------
@@ -112,13 +119,21 @@ static void pre_display(void) {
 
 static void post_display(void) { glutSwapBuffers(); }
 
+static void from_colormap(float t, float max, float *r, float *g, float *b) {
+    int idx = (int) (t * 255.0f / max);
+    idx = idx < 0 ? 0 : (idx > 255 ? 255 : idx);
+    *r = colormap[idx][0];
+    *g = colormap[idx][1];
+    *b = colormap[idx][2];
+}
+
 static void draw_velocity(void) {
     int i, j;
     float x, y, h;
+    float r, g, b;
 
     h = 1.0f / N;
 
-    glColor3f(1.0f, 1.0f, 1.0f);
     glLineWidth(1.0f);
 
     glBegin(GL_LINES);
@@ -127,7 +142,9 @@ static void draw_velocity(void) {
         x = (i - 0.5f) * h;
         for (j = 1; j <= N; j++) {
             y = (j - 0.5f) * h;
-
+            float magnitude = std::sqrt(u[IX(i, j)] * u[IX(i, j)] + v[IX(i, j)] * v[IX(i, j)]);
+            from_colormap(magnitude, 0.15f, &r, &g, &b);
+            glColor3f(r, g, b);
             glVertex2f(x, y);
             glVertex2f(x + u[IX(i, j)], y + v[IX(i, j)]);
         }
