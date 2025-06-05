@@ -1,16 +1,20 @@
 cmake_minimum_required(VERSION 3.10)
 cmake_policy(SET CMP0072 NEW)
-project(FluidSim C)
 
-set(CMAKE_C_STANDARD 99)
+# This is now a C++ project
+project(FluidSim CXX)
+
+# Set C++ standard
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Set the source directory
 set(SRC_DIR code)
 
-# Define source files
+# Define source files (now .cpp files)
 set(SOURCES
-        ${SRC_DIR}/demo.c
-        ${SRC_DIR}/solver.c
+        ${SRC_DIR}/demo.cpp
+        ${SRC_DIR}/solver.cpp
 )
 
 # Create the executable
@@ -19,7 +23,6 @@ add_executable(${PROJECT_NAME} ${SOURCES})
 # OS-specific OpenGL/GLUT configuration
 if(APPLE)
     target_link_libraries(${PROJECT_NAME} "-framework OpenGL" "-framework GLUT" m)
-
 elseif(UNIX)  # Linux / WSL
     find_package(OpenGL REQUIRED)
     find_package(GLUT REQUIRED)
