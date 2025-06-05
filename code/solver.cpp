@@ -12,6 +12,11 @@
     }                                                                                                                  \
     }
 
+#include <math.h>
+#include <stdlib.h>
+#include <iostream>
+
+
 void add_source(int N, float *x, float *s, float dt) {
     int i, size = (N + 2) * (N + 2);
     for (i = 0; i < size; i++)
@@ -98,6 +103,24 @@ void project(int N, float *u, float *v, float *p, float *div) {
     set_bnd(N, 2, v);
 }
 
+// Update u and v inplace. curl, grad_x and grad_y are just buffers.
+void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float epsilon, float dt) {
+    int i, j;
+    FOR_EACH_CELL
+        curl[IX(i, j)] = 0.5f * (u[IX(i+1, j)] - u[IX(i-1, j)]) * v[IX(i,j)] -
+            0.5f * (v[IX(i, j+1)] - u[IX(i, j-1)]) * u[IX(i, j)];
+    END_FOR
+    FOR_EACH_CELL
+        float x = 0.5f * (abs(curl[IX(i+1, j)]) - abs(curl[IX(i-1, j)]));
+        float y = 0.5f * (abs(curl[IX(i, j+1)]) - abs(curl[IX(i, j-1)]));
+        float len = sqrt(x * x + y * y);
+        x /= len;
+        y /= len;
+        u[IX(i, j)] += epsilon * dt * curl[IX(i, j)] * (-y);
+        v[IX(i, j)] += epsilon * dt * curl[IX(i, j)] * x;
+    END_FOR
+}
+
 void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt) {
     add_source(N, x, x0, dt);
     SWAP(x0, x);
@@ -107,16 +130,27 @@ void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float
 }
 
 void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt) {
+    // vel: u,v - source forces u0, v0
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
+    // vel: u,v - buffers u0, v0
+    add_vorticity_conf_forces(N, u, v, u0, 0.5, dt);
+    std::cout << "bla" << std::endl;
+    // vel: u,v - buffers u0, v0
     SWAP(u0, u);
+    SWAP(v0, v);
+    // vel: u0,v0 - buffers u, v
     diffuse(N, 1, u, u0, visc, dt);
-    SWAP(v0, v);
     diffuse(N, 2, v, v0, visc, dt);
+    // vel: u,v - buffers u0, v0
     project(N, u, v, u0, v0);
+    // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
+    // vel: u0,v0 - buffers u, v
     advect(N, 1, u, u0, u0, v0, dt);
     advect(N, 2, v, v0, u0, v0, dt);
+    // vel: u,v - buffers u0, v0
     project(N, u, v, u0, v0);
+    // vel: u,v - buffers u0, v0
 }
