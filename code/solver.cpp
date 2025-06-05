@@ -25,34 +25,36 @@ void add_source(int N, float *x, float *s, float dt) {
 
 void set_bnd(int N, int b, float *x, bool* obstacles) {
     int i, j;
-    FOR_EACH_CELL
-        if (!obstacles[IX(i,j)]) {
-            continue;
+    for (size_t i = 0; i <= N+1; i++) {
+        for (size_t j = 0; j <= N+1; j++) {
+            if (!obstacles[IX(i,j)]) {
+                continue;
+            }
+            int fluid_neighbor_count = 0;
+            float sum = 0.0;
+            if (i > 0 && !obstacles[IX(i-1, j)]) {
+                sum += b == 1 ? -x[IX(i-1, j)] : x[IX(i-1, j)];
+                fluid_neighbor_count += 1;
+            }
+            if (i < N+1 && !obstacles[IX(i+1, j)]) {
+                sum += b == 1 ? -x[IX(i+1, j)] : x[IX(i+1, j)];
+                fluid_neighbor_count += 1;
+            }
+            if (j < N+1 && !obstacles[IX(i, j+1)]) {
+                sum += b == 2 ? -x[IX(i, j+1)] : x[IX(i, j+1)];
+                fluid_neighbor_count += 1;
+            }
+            if (j > 0 && !obstacles[IX(i, j-1)]) {
+                sum += b == 2 ? -x[IX(i, j-1)] : x[IX(i, j-1)];
+                fluid_neighbor_count += 1;
+            }
+            if (fluid_neighbor_count > 0) {
+                x[IX(i, j)] = sum / fluid_neighbor_count;
+            } else {
+                x[IX(i, j)] = 0.0;
+            }
         }
-        int fluid_neighbor_count = 0;
-        float sum = 0.0;
-        if (!obstacles[IX(i-1, j)]) {
-            sum += b == 1 ? -x[IX(i-1, j)] : x[IX(i-1, j)];
-            fluid_neighbor_count += 1;
-        }
-        if (!obstacles[IX(i+1, j)]) {
-            sum += b == 1 ? -x[IX(i+1, j)] : x[IX(i+1, j)];
-            fluid_neighbor_count += 1;
-        }
-        if (!obstacles[IX(i, j+1)]) {
-            sum += b == 2 ? -x[IX(i, j+1)] : x[IX(i, j+1)];
-            fluid_neighbor_count += 1;
-        }
-        if (!obstacles[IX(i, j-1)]) {
-            sum += b == 2 ? -x[IX(i, j-1)] : x[IX(i, j-1)];
-            fluid_neighbor_count += 1;
-        }
-        if (fluid_neighbor_count > 0) {
-            x[IX(i, j)] = sum / fluid_neighbor_count;
-        } else {
-            x[IX(i, j)] = 0.0;
-        }
-    END_FOR
+    }
     //for (i = 1; i <= N; i++) {
     //    x[IX(0, i)] = b == 1 ? -x[IX(1, i)] : x[IX(1, i)];
     //    x[IX(N + 1, i)] = b == 1 ? -x[IX(N, i)] : x[IX(N, i)];

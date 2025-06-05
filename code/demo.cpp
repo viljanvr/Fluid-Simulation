@@ -85,17 +85,20 @@ static void clear_data(void) {
         obstacles[IX(N+1 - i, N+1)] = true;
         obstacles[IX(0, N+1 - i)] = true;
     }
-    for (size_t i = 1; i < N / 2; i++) {
-        for (size_t j = 1; j < N + 1; j++) {
-            //obstacles[IX(i, j)] = true;
+    for (size_t i = N / 2 - 10; i < N / 2; i++) {
+        for (size_t j = 1; j < N / 2 - 5; j++) {
+            obstacles[IX(i, j)] = true;
         }
-    }
-
-    for (size_t i = 20; i < 30; i++) {
-        for (size_t j = 10; j < 20; j++) {
+        for (size_t j = N - 10; j > N / 2 + 5; j--) {
             obstacles[IX(i, j)] = true;
         }
     }
+
+    //for (size_t i = 20; i < 30; i++) {
+    //    for (size_t j = 10; j < 20; j++) {
+    //        obstacles[IX(i, j)] = true;
+    //    }
+    //}
 
 }
 
@@ -171,6 +174,11 @@ static void draw_density(void) {
         x = (i - 0.5f) * h;
         for (j = 0; j <= N; j++) {
             y = (j - 0.5f) * h;
+
+            //d00 = obstacles[IX(i,j)] ? 1 : dens[IX(i, j)];
+            //d01 = obstacles[IX(i,j + 1)] ? 1 : dens[IX(i, j + 1)];
+            //d10 = obstacles[IX(i + 1,j)] ? 1 : dens[IX(i + 1, j)];
+            //d11 = obstacles[IX(i + 1,j + 1)] ? 1 : dens[IX(i + 1, j + 1)];
 
             d00 = dens[IX(i, j)];
             d01 = dens[IX(i, j + 1)];
