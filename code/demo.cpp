@@ -30,8 +30,8 @@
 
 /* external definitions (from solver.c) */
 
-extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt);
+extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, bool *obstacles);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, bool *obstacles);
 
 /* global variables */
 
@@ -42,6 +42,7 @@ static int dvel;
 
 static float *u, *v, *u_prev, *v_prev;
 static float *dens, *dens_prev;
+static bool *obstacles;
 
 static int win_id;
 static int win_x, win_y;
@@ -67,6 +68,8 @@ static void free_data(void) {
         free(dens);
     if (dens_prev)
         free(dens_prev);
+    if (obstacles)
+        free(obstacles);
 }
 
 static void clear_data(void) {
@@ -74,7 +77,26 @@ static void clear_data(void) {
 
     for (i = 0; i < size; i++) {
         u[i] = v[i] = u_prev[i] = v_prev[i] = dens[i] = dens_prev[i] = 0.0f;
+        obstacles[i] = false;
     }
+    for (size_t i = 0; i <= N; i++) {
+        obstacles[IX(i, 0)] = true;
+        obstacles[IX(N+1, i)] = true;
+        obstacles[IX(N+1 - i, N+1)] = true;
+        obstacles[IX(0, N+1 - i)] = true;
+    }
+    for (size_t i = 1; i < N / 2; i++) {
+        for (size_t j = 1; j < N + 1; j++) {
+            //obstacles[IX(i, j)] = true;
+        }
+    }
+
+    for (size_t i = 20; i < 30; i++) {
+        for (size_t j = 10; j < 20; j++) {
+            obstacles[IX(i, j)] = true;
+        }
+    }
+
 }
 
 static int allocate_data(void) {
@@ -86,8 +108,9 @@ static int allocate_data(void) {
     v_prev = (float *) malloc(size * sizeof(float));
     dens = (float *) malloc(size * sizeof(float));
     dens_prev = (float *) malloc(size * sizeof(float));
+    obstacles = (bool *) malloc(size * sizeof(bool));
 
-    if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev) {
+    if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev || !obstacles) {
         fprintf(stderr, "cannot allocate data\n");
         return (0);
     }
@@ -263,8 +286,8 @@ static void reshape_func(int width, int height) {
 
 static void idle_func(void) {
     get_from_UI(dens_prev, u_prev, v_prev);
-    vel_step(N, u, v, u_prev, v_prev, visc, dt);
-    dens_step(N, dens, dens_prev, u, v, diff, dt);
+    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacles);
+    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacles);
 
     glutSetWindow(win_id);
     glutPostRedisplay();
