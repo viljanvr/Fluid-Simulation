@@ -12,9 +12,9 @@
     }                                                                                                                  \
     }
 
+#include <iostream>
 #include <math.h>
 #include <stdlib.h>
-#include <iostream>
 
 
 void add_source(int N, float *x, float *s, float dt) {
@@ -106,23 +106,25 @@ void project(int N, float *u, float *v, float *p, float *div) {
 // Update u and v inplace. curl is a buffer used in the function.
 void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float epsilon, float dt) {
     int i, j;
-    FOR_EACH_CELL
-        curl[IX(i, j)] = 0.5f * (v[IX(i+1,j)] - v[IX(i-1,j)] - u[IX(i,j+1)] + u[IX(i,j-1)]) / N;
-    END_FOR
-    FOR_EACH_CELL
-        float x = 0.5f * (abs(curl[IX(i+1, j)]) - abs(curl[IX(i-1, j)])) / N;
-        float y = 0.5f * (abs(curl[IX(i, j+1)]) - abs(curl[IX(i, j-1)])) / N;
-        float len = sqrt(x * x + y * y);
-        if (len < 1e-6f) {
-            continue;
-        }
-        x /= len;
-        y /= len;
-        float x_force = epsilon * curl[IX(i, j)] * (y);
-        float y_force = epsilon * curl[IX(i, j)] * (-x);
 
-        u[IX(i, j)] += dt * x_force;
-        v[IX(i, j)] += dt * y_force;
+    FOR_EACH_CELL
+    curl[IX(i, j)] = 0.5f * (v[IX(i + 1, j)] - v[IX(i - 1, j)] - u[IX(i, j + 1)] + u[IX(i, j - 1)]) / N;
+    END_FOR
+
+    FOR_EACH_CELL
+    float x = 0.5f * (abs(curl[IX(i + 1, j)]) - abs(curl[IX(i - 1, j)])) / N;
+    float y = 0.5f * (abs(curl[IX(i, j + 1)]) - abs(curl[IX(i, j - 1)])) / N;
+    float len = sqrt(x * x + y * y);
+    if (len < 1e-6f) {
+        continue;
+    }
+    x /= len;
+    y /= len;
+    float x_force = epsilon * curl[IX(i, j)] * (y);
+    float y_force = epsilon * curl[IX(i, j)] * (-x);
+
+    u[IX(i, j)] += dt * x_force;
+    v[IX(i, j)] += dt * y_force;
     END_FOR
 }
 

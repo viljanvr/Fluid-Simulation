@@ -14,6 +14,7 @@
   =======================================================================
 */
 
+#include <cctype>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -227,6 +228,16 @@ static void key_func(unsigned char key, int x, int y) {
         case 'V':
             dvel = !dvel;
             break;
+        default:
+            if (std::isdigit(key)) {
+                // If we want to use scenes like in project 1
+                // int n = key - '0';
+                // set_scene(n);
+
+                dens[IX(N / 2, N / 2)] = 100.0f;
+                u[IX(N / 2, N / 2)] = 5.0f;
+                v[IX(N / 2, N / 2)] = 0.0f;
+            }
     }
 }
 
