@@ -103,21 +103,26 @@ void project(int N, float *u, float *v, float *p, float *div) {
     set_bnd(N, 2, v);
 }
 
-// Update u and v inplace. curl, grad_x and grad_y are just buffers.
+// Update u and v inplace. curl is a buffer used in the function.
 void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float epsilon, float dt) {
     int i, j;
     FOR_EACH_CELL
-        curl[IX(i, j)] = 0.5f * (u[IX(i+1, j)] - u[IX(i-1, j)]) * v[IX(i,j)] -
-            0.5f * (v[IX(i, j+1)] - u[IX(i, j-1)]) * u[IX(i, j)];
+        curl[IX(i, j)] = 0.5f * (v[IX(i+1,j)] - v[IX(i-1,j)] - u[IX(i,j+1)] + u[IX(i,j-1)]) / N;
     END_FOR
     FOR_EACH_CELL
-        float x = 0.5f * (abs(curl[IX(i+1, j)]) - abs(curl[IX(i-1, j)]));
-        float y = 0.5f * (abs(curl[IX(i, j+1)]) - abs(curl[IX(i, j-1)]));
+        float x = 0.5f * (abs(curl[IX(i+1, j)]) - abs(curl[IX(i-1, j)])) / N;
+        float y = 0.5f * (abs(curl[IX(i, j+1)]) - abs(curl[IX(i, j-1)])) / N;
         float len = sqrt(x * x + y * y);
+        if (len < 1e-6f) {
+            continue;
+        }
         x /= len;
         y /= len;
-        u[IX(i, j)] += epsilon * dt * curl[IX(i, j)] * (-y);
-        v[IX(i, j)] += epsilon * dt * curl[IX(i, j)] * x;
+        float x_force = epsilon * curl[IX(i, j)] * (y);
+        float y_force = epsilon * curl[IX(i, j)] * (-x);
+
+        u[IX(i, j)] += dt * x_force;
+        v[IX(i, j)] += dt * y_force;
     END_FOR
 }
 
@@ -134,8 +139,7 @@ void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
     // vel: u,v - buffers u0, v0
-    add_vorticity_conf_forces(N, u, v, u0, 0.5, dt);
-    std::cout << "bla" << std::endl;
+    add_vorticity_conf_forces(N, u, v, u0, 160, dt);
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
