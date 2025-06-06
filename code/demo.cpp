@@ -153,6 +153,23 @@ static void from_colormap(float t, float max, float *r, float *g, float *b) {
     *b = colormap[idx][2];
 }
 
+static void color_on_direction(float u, float v, float &r, float &g, float &b) {
+    r = std::max(u, 0.0f) + std::max(v, 0.0f);
+    g = std::max(u, 0.0f) + std::max(-u, 0.0f) * 0.3f + std::max(-v, 0.0f) * 0.5;
+    b = std::max(-u, 0.0f);
+    r = sqrt(r);
+    g = sqrt(g);
+    b = sqrt(b);
+    //r = std::max(v, 0.0f) + std::max(u, 0.0f);
+    //g = std::abs(u);
+    //b = std::max(-v, 0.0f);
+    float magnitude = std::sqrt(r * r + g * g + b * b);
+    float target_magnitude = std::clamp(std::sqrt(u * u + v * v) * 20, 0.45f, 1.3f);
+    r = r / magnitude * target_magnitude;
+    g = g / magnitude * target_magnitude;
+    b = b / magnitude * target_magnitude;
+}
+
 static void draw_velocity(void) {
     int i, j;
     float x, y, h;
@@ -168,8 +185,9 @@ static void draw_velocity(void) {
         x = (i - 0.5f) * h;
         for (j = 1; j <= N; j++) {
             y = (j - 0.5f) * h;
-            float magnitude = std::sqrt(u[IX(i, j)] * u[IX(i, j)] + v[IX(i, j)] * v[IX(i, j)]);
-            from_colormap(magnitude, 0.15f, &r, &g, &b);
+            //float magnitude = std::sqrt(u[IX(i, j)] * u[IX(i, j)] + v[IX(i, j)] * v[IX(i, j)]);
+            //from_colormap(magnitude, 0.15f, &r, &g, &b);
+            color_on_direction(u[IX(i,j)], v[IX(i,j)], r, g, b);
             glColor3f(r, g, b);
             glVertex2f(x, y);
             glVertex2f(x + u[IX(i, j)], y + v[IX(i, j)]);
