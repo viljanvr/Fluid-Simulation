@@ -1,7 +1,8 @@
-#include <iostream>
-#include <vector>
+#include <math.h>
+#include <stdlib.h>
 #include "SolidObject.h"
 #include "gfx/vec2.h"
+
 #define IX(i, j) ((i) + (N + 2) * (j))
 #define SWAP(x0, x)                                                                                                    \
     {                                                                                                                  \
@@ -16,9 +17,6 @@
     }                                                                                                                  \
     }
 
-#include <math.h>
-#include <stdlib.h>
-
 
 void add_source(int N, float *x, float *s, float dt) {
     int i, size = (N + 2) * (N + 2);
@@ -26,7 +24,7 @@ void add_source(int N, float *x, float *s, float dt) {
         x[i] += dt * s[i];
 }
 
-void set_bnd(int N, int b, float *x, int *obstacle_mask, std::vector<SolidObject *> &obstacles) {
+void set_bnd(int N, int b, float *x, SolidObject **obstacle_mask) {
     int i, j;
 
     // Update the outer cells (i.e. border)
@@ -49,66 +47,52 @@ void set_bnd(int N, int b, float *x, int *obstacle_mask, std::vector<SolidObject
     }
     int fluid_neighbor_count = 0;
     float sum = 0.0;
-    Vec2f surface_normal(0.0, 0.0);
 
     if (!obstacle_mask[IX(i - 1, j)]) {
-        sum += b == 1 ? -x[IX(i - 1, j)] : x[IX(i - 1, j)];
+        sum += b == 1 ? -x[IX(i - 1, j)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[0]
+                      : x[IX(i - 1, j)];
         fluid_neighbor_count += 1;
-        surface_normal[0] -= 1.0;
     }
     if (!obstacle_mask[IX(i + 1, j)]) {
-        sum += b == 1 ? -x[IX(i + 1, j)] : x[IX(i + 1, j)];
+        sum += b == 1 ? -x[IX(i + 1, j)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[0]
+                      : x[IX(i + 1, j)];
         fluid_neighbor_count += 1;
-        surface_normal[0] += 1.0;
     }
     if (!obstacle_mask[IX(i, j + 1)]) {
-        sum += b == 2 ? -x[IX(i, j + 1)] : x[IX(i, j + 1)];
+        sum += b == 2 ? -x[IX(i, j + 1)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[1]
+                      : x[IX(i, j + 1)];
         fluid_neighbor_count += 1;
-        surface_normal[1] += 1.0;
     }
     if (!obstacle_mask[IX(i, j - 1)]) {
-        sum += b == 2 ? -x[IX(i, j - 1)] : x[IX(i, j - 1)];
+        sum += b == 2 ? -x[IX(i, j - 1)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[1]
+                      : x[IX(i, j - 1)];
         fluid_neighbor_count += 1;
-        surface_normal[1] -= 1.0;
     }
     if (fluid_neighbor_count > 0) {
-
-        if ((b != 1 && b != 2) || obstacle_mask[IX(i, j)] == -1) {
-            x[IX(i, j)] = sum / fluid_neighbor_count;
-        } else {
-            surface_normal = surface_normal / norm(surface_normal);
-            // std::cout << surface_normal[0] << ", " << surface_normal[1] << std::endl;
-            float normal_velocity = obstacles[obstacle_mask[IX(i, j)] - 1]->getVelocityFromPosition(i, j)[b - 1] *
-                                    abs(surface_normal[b - 1]);
-
-            x[IX(i, j)] = sum / fluid_neighbor_count + 2 * normal_velocity;
-        }
+        x[IX(i, j)] = sum / fluid_neighbor_count;
     } else {
         x[IX(i, j)] = 0.0;
     }
     END_FOR
 }
 
-void lin_solve(int N, int b, float *x, float *x0, float a, float c, int *obstacle_mask,
-               std::vector<SolidObject *> &obstacles) {
+void lin_solve(int N, int b, float *x, float *x0, float a, float c, SolidObject **obstacle_mask) {
     int i, j, k;
 
     for (k = 0; k < 20; k++) {
         FOR_EACH_CELL
         x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i - 1, j)] + x[IX(i + 1, j)] + x[IX(i, j - 1)] + x[IX(i, j + 1)])) / c;
         END_FOR
-        set_bnd(N, b, x, obstacle_mask, obstacles);
+        set_bnd(N, b, x, obstacle_mask);
     }
 }
 
-void diffuse(int N, int b, float *x, float *x0, float diff, float dt, int *obstacle_mask,
-             std::vector<SolidObject *> &obstacles) {
+void diffuse(int N, int b, float *x, float *x0, float diff, float dt, SolidObject **obstacle_mask) {
     float a = dt * diff * N * N;
-    lin_solve(N, b, x, x0, a, 1 + 4 * a, obstacle_mask, obstacles);
+    lin_solve(N, b, x, x0, a, 1 + 4 * a, obstacle_mask);
 }
 
-void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, int *obstacle_mask,
-            std::vector<SolidObject *> &obstacles) {
+void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, SolidObject **obstacle_mask) {
     int i, j, i0, j0, i1, j1;
     float x, y, s0, t0, s1, t1, dt0;
 
@@ -134,28 +118,27 @@ void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, int
     t0 = 1 - t1;
     d[IX(i, j)] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) + s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
     END_FOR
-    set_bnd(N, b, d, obstacle_mask, obstacles);
+    set_bnd(N, b, d, obstacle_mask);
 }
 
-void project(int N, float *u, float *v, float *p, float *div, int *obstacle_mask,
-             std::vector<SolidObject *> &obstacles) {
+void project(int N, float *u, float *v, float *p, float *div, SolidObject **obstacle_mask) {
     int i, j;
 
     FOR_EACH_CELL
     div[IX(i, j)] = -0.5f * (u[IX(i + 1, j)] - u[IX(i - 1, j)] + v[IX(i, j + 1)] - v[IX(i, j - 1)]) / N;
     p[IX(i, j)] = 0;
     END_FOR
-    set_bnd(N, 0, div, obstacle_mask, obstacles);
-    set_bnd(N, 0, p, obstacle_mask, obstacles);
+    set_bnd(N, 0, div, obstacle_mask);
+    set_bnd(N, 0, p, obstacle_mask);
 
-    lin_solve(N, 0, p, div, 1, 4, obstacle_mask, obstacles);
+    lin_solve(N, 0, p, div, 1, 4, obstacle_mask);
 
     FOR_EACH_CELL
     u[IX(i, j)] -= 0.5f * N * (p[IX(i + 1, j)] - p[IX(i - 1, j)]);
     v[IX(i, j)] -= 0.5f * N * (p[IX(i, j + 1)] - p[IX(i, j - 1)]);
     END_FOR
-    set_bnd(N, 1, u, obstacle_mask, obstacles);
-    set_bnd(N, 2, v, obstacle_mask, obstacles);
+    set_bnd(N, 1, u, obstacle_mask);
+    set_bnd(N, 2, v, obstacle_mask);
 }
 
 // Update u and v inplace. curl is a buffer used in the function.
@@ -183,17 +166,15 @@ void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float eps
     END_FOR
 }
 
-void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, int *obstacle_mask,
-               std::vector<SolidObject *> &obstacles) {
+void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, SolidObject **obstacle_mask) {
     add_source(N, x, x0, dt);
     SWAP(x0, x);
-    diffuse(N, 0, x, x0, diff, dt, obstacle_mask, obstacles);
+    diffuse(N, 0, x, x0, diff, dt, obstacle_mask);
     SWAP(x0, x);
-    advect(N, 0, x, x0, u, v, dt, obstacle_mask, obstacles);
+    advect(N, 0, x, x0, u, v, dt, obstacle_mask);
 }
 
-void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, int *obstacle_mask,
-              std::vector<SolidObject *> &obstacles) {
+void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, SolidObject **obstacle_mask) {
     // vel: u,v - source forces u0, v0
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
@@ -203,17 +184,17 @@ void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float
     SWAP(u0, u);
     SWAP(v0, v);
     // vel: u0,v0 - buffers u, v
-    diffuse(N, 1, u, u0, visc, dt, obstacle_mask, obstacles);
-    diffuse(N, 2, v, v0, visc, dt, obstacle_mask, obstacles);
+    diffuse(N, 1, u, u0, visc, dt, obstacle_mask);
+    diffuse(N, 2, v, v0, visc, dt, obstacle_mask);
     // vel: u,v - buffers u0, v0
-    project(N, u, v, u0, v0, obstacle_mask, obstacles);
+    project(N, u, v, u0, v0, obstacle_mask);
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
     // vel: u0,v0 - buffers u, v
-    advect(N, 1, u, u0, u0, v0, dt, obstacle_mask, obstacles);
-    advect(N, 2, v, v0, u0, v0, dt, obstacle_mask, obstacles);
+    advect(N, 1, u, u0, u0, v0, dt, obstacle_mask);
+    advect(N, 2, v, v0, u0, v0, dt, obstacle_mask);
     // vel: u,v - buffers u0, v0
-    project(N, u, v, u0, v0, obstacle_mask, obstacles);
+    project(N, u, v, u0, v0, obstacle_mask);
     // vel: u,v - buffers u0, v0
 }

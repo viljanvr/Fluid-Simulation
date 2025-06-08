@@ -17,8 +17,6 @@
 #include <cctype>
 #include <cmath>
 #include <cstddef>
-#include <iostream>
-#include <ostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include "SolidObject.h"
@@ -38,10 +36,10 @@
 
 /* external definitions (from solver.c) */
 
-extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, int *obstacle_mask,
-                      std::vector<SolidObject *> &obstacles);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, int *obstacle_mask,
-                     std::vector<SolidObject *> &obstacles);
+extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt,
+                      SolidObject **obstacle_mask);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt,
+                     SolidObject **obstacle_mask);
 
 /* global variables */
 
@@ -60,7 +58,7 @@ static int omx, omy, mx, my; // Pixel-coordinate
 
 static float (*colormap)[3] = jet_colormap;
 
-static int *obstacle_mask;
+static SolidObject **obstacle_mask;
 static std::vector<SolidObject *> obstacles;
 static SolidObject *interacting_obstacle;
 
@@ -95,15 +93,7 @@ static void clear_data(void) {
 
     for (i = 0; i < size; i++) {
         u[i] = v[i] = u_prev[i] = v_prev[i] = dens[i] = dens_prev[i] = 0.0f;
-        obstacle_mask[i] = 0;
-    }
-
-    // Set outer boundary
-    for (size_t i = 0; i <= N; i++) {
-        obstacle_mask[IX(i, 0)] = -1;
-        obstacle_mask[IX(N + 1, i)] = -1;
-        obstacle_mask[IX(N + 1 - i, N + 1)] = -1;
-        obstacle_mask[IX(0, N + 1 - i)] = -1;
+        obstacle_mask[i] = nullptr;
     }
 
     for (auto o: obstacles) {
@@ -112,9 +102,9 @@ static void clear_data(void) {
     obstacles.clear();
 
     // obstacles.push_back(new SolidObject(N, 2, 2, 8, 8));
-    obstacles.push_back(new SolidObject(N, Vec2f(0.20f, 0.20f), Vec2f(0.30f, 0.30f)));
+    obstacles.push_back(new SolidObject(N, Vec2f(0.20f, 0.20f), Vec2f(0.40f, 0.40)));
     for (i = 0; i < obstacles.size(); i++) {
-        obstacles[i]->addToObstacleMask(N, obstacle_mask, i + 1);
+        obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
 }
 
@@ -127,7 +117,7 @@ static int allocate_data(void) {
     v_prev = (float *) malloc(size * sizeof(float));
     dens = (float *) malloc(size * sizeof(float));
     dens_prev = (float *) malloc(size * sizeof(float));
-    obstacle_mask = (int *) malloc(size * sizeof(int));
+    obstacle_mask = (SolidObject **) malloc(size * sizeof(SolidObject *));
 
     if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev || !obstacle_mask) {
         fprintf(stderr, "cannot allocate data\n");
@@ -291,13 +281,13 @@ static void update_interactable_object() {
     interacting_obstacle->setVelocity(Vec2f(delta_x, delta_y));
     interacting_obstacle->moveObject();
 
-    for (int i = 1; i < N + 1; i++) {
-        for (int j = 1; j < N + 1; j++) {
-            obstacle_mask[IX(i, j)] = 0;
+    for (int i = 0; i <= N + 1; i++) {
+        for (int j = 0; j <= N + 1; j++) {
+            obstacle_mask[IX(i, j)] = nullptr;
         }
     }
     for (int i = 0; i < obstacles.size(); i++) {
-        obstacles[i]->addToObstacleMask(N, obstacle_mask, i + 1);
+        obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
 
     // for (int i = 0; i < N + 2; i++) {
@@ -322,6 +312,7 @@ static void begin_object_interaction() {
 static void end_object_interaction() {
     if (!interacting_obstacle)
         return;
+    interacting_obstacle->alignPositionToGrid(N);
     interacting_obstacle->setVelocity(Vec2f(0.0, 0.0));
     interacting_obstacle = nullptr;
 }
@@ -391,8 +382,8 @@ static void reshape_func(int width, int height) {
 static void idle_func(void) {
     add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
     update_interactable_object();
-    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask, obstacles);
-    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask, obstacles);
+    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask);
+    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask);
 
     omx = mx;
     omy = my;

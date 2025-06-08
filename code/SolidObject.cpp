@@ -1,6 +1,6 @@
 #include "SolidObject.h"
+#include <algorithm>
 #include <cmath>
-#include <iostream>
 #include "gfx/vec2.h"
 
 #if defined(__APPLE__) && defined(__aarch64__)
@@ -24,10 +24,15 @@ Vec2f SolidObject::getVelocityFromPosition(float x, float y) { return m_Velocity
 
 Vec2f SolidObject::getCGVelocity() { return m_Velocity; }
 
-void SolidObject::addToObstacleMask(int N, int *obstacle_mask, int index) {
-    for (int i = m_P1[0] * N; i < m_P2[0] * N; i++) {
-        for (int j = m_P1[1] * N; j < m_P2[1] * N; j++) {
-            obstacle_mask[IX(i + 1, j + 1)] = index;
+void SolidObject::addToObstacleMask(int N, SolidObject **obstacle_mask) {
+    int x1 = std::max(0, (int) std::round(m_P1[0] * N));
+    int x2 = std::min(N, (int) std::round(m_P2[0] * N));
+    int y1 = std::max(0, (int) std::round(m_P1[1] * N));
+    int y2 = std::min(N, (int) std::round(m_P2[1] * N));
+
+    for (int i = x1; i < x2; i++) {
+        for (int j = y1; j < y2; j++) {
+            obstacle_mask[IX(i + 1, j + 1)] = this;
         }
     }
 }

@@ -10,17 +10,14 @@ public:
     Vec2f getCGVelocity();
     void setVelocity(Vec2f velocity);
     void moveObject();
-
-    // Adds index to all positions in obstacleMask occupied by this object
-    void addToObstacleMask(int N, int *obstacle_mask, int index);
+    void alignPositionToGrid(int N);
+    void addToObstacleMask(int N, SolidObject **obstacle_mask);
     void draw();
     bool isInside(float x, float y);
 
     Vec2f m_Velocity;
 
 private:
-    void alignPositionToGrid(int N);
-
     // Obstacle is defined by to diagonal corners P1, P2
     Vec2f m_P1;
     Vec2f m_P2;
