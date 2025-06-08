@@ -17,14 +17,24 @@ set(SRC_DIR code)
 set(SOURCES
         ${SRC_DIR}/demo.cpp
         ${SRC_DIR}/solver.cpp
+        ${SRC_DIR}/SolidObject.cpp
 )
 
 # Create the executable
 add_executable(${PROJECT_NAME} ${SOURCES})
 
+target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_CONFIG_H)
+
+if (WIN32)
+  target_include_directories(${PROJECT_NAME} PRIVATE "include/windows")
+elseif (UNIX)
+  target_include_directories(${PROJECT_NAME} PRIVATE "include/linux")
+endif()
+
 # OS-specific OpenGL/GLUT configuration
 if(APPLE)
   target_link_libraries(${PROJECT_NAME} "-framework OpenGL" "-framework GLUT" m)
+  target_include_directories(${PROJECT_NAME} PRIVATE "/opt/homebrew/include")
 elseif(UNIX)  # Linux / WSL
   find_package(OpenGL REQUIRED)
   find_package(GLUT REQUIRED)
