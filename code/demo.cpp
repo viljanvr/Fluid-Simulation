@@ -19,7 +19,8 @@
 #include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
-#include "SolidObject.h"
+#include "SolidCircle.h"
+#include "SolidRectangle.h"
 #include "gfx/vec2.h"
 #include "jet_colormap.h"
 #include "viridis_colormap.h"
@@ -36,10 +37,8 @@
 
 /* external definitions (from solver.c) */
 
-extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt,
-                      SolidObject **obstacle_mask);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt,
-                     SolidObject **obstacle_mask);
+extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask);
 
 /* global variables */
 
@@ -58,9 +57,9 @@ static int omx, omy, mx, my; // Pixel-coordinate
 
 static float (*colormap)[3] = jet_colormap;
 
-static SolidObject **obstacle_mask;
-static std::vector<SolidObject *> obstacles;
-static SolidObject *interacting_obstacle;
+static Object **obstacle_mask;
+static std::vector<Object *> obstacles;
+static Object *interacting_obstacle;
 
 /*
   ----------------------------------------------------------------------
@@ -101,8 +100,9 @@ static void clear_data(void) {
     }
     obstacles.clear();
 
-    // obstacles.push_back(new SolidObject(N, 2, 2, 8, 8));
-    obstacles.push_back(new SolidObject(N, Vec2f(0.20f, 0.20f), Vec2f(0.40f, 0.40)));
+    // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1));
+    // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
+    obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
@@ -117,7 +117,7 @@ static int allocate_data(void) {
     v_prev = (float *) malloc(size * sizeof(float));
     dens = (float *) malloc(size * sizeof(float));
     dens_prev = (float *) malloc(size * sizeof(float));
-    obstacle_mask = (SolidObject **) malloc(size * sizeof(SolidObject *));
+    obstacle_mask = (Object **) malloc(size * sizeof(Object *));
 
     if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev || !obstacle_mask) {
         fprintf(stderr, "cannot allocate data\n");
@@ -271,6 +271,37 @@ static void add_dens_and_vel_from_UI(float *d, float *u, float *v) {
     }
 }
 
+// Debug helper funciton
+static void print_obstacle_mask() {
+    for (int x = 0; x < N + 4; x++)
+        std::cout << "-";
+    std::cout << "\n";
+
+    for (int j = 0; j < N + 2; j++) {
+        std::cout << "|";
+        for (int i = 0; i < N + 2; i++) {
+            std::cout << (obstacle_mask[IX(i, (N + 1) - j)] ? "█" : "x");
+        }
+        std::cout << "|\n";
+    }
+
+    for (int x = 0; x < N + 4; x++)
+        std::cout << "-";
+    std::cout << std::endl;
+}
+
+static void set_obstacle_mask() {
+    for (int i = 0; i <= N + 1; i++) {
+        for (int j = 0; j <= N + 1; j++) {
+            obstacle_mask[IX(i, j)] = nullptr;
+        }
+    }
+    for (int i = 0; i < obstacles.size(); i++) {
+        obstacles[i]->addToObstacleMask(N, obstacle_mask);
+    }
+    // print_obstacle_mask();
+}
+
 static void update_interactable_object() {
     if (!interacting_obstacle)
         return;
@@ -281,21 +312,7 @@ static void update_interactable_object() {
     interacting_obstacle->setVelocity(Vec2f(delta_x, delta_y));
     interacting_obstacle->moveObject();
 
-    for (int i = 0; i <= N + 1; i++) {
-        for (int j = 0; j <= N + 1; j++) {
-            obstacle_mask[IX(i, j)] = nullptr;
-        }
-    }
-    for (int i = 0; i < obstacles.size(); i++) {
-        obstacles[i]->addToObstacleMask(N, obstacle_mask);
-    }
-
-    // for (int i = 0; i < N + 2; i++) {
-    //     for (int j = 0; j < N + 2; j++) {
-    //         std::cout << obstacle_mask[IX(i, j)] << " ";
-    //     }
-    //     std::cout << std::endl;
-    // }
+    set_obstacle_mask();
 }
 
 static void begin_object_interaction() {
@@ -313,6 +330,9 @@ static void end_object_interaction() {
     if (!interacting_obstacle)
         return;
     interacting_obstacle->alignPositionToGrid(N);
+
+    set_obstacle_mask();
+
     interacting_obstacle->setVelocity(Vec2f(0.0, 0.0));
     interacting_obstacle = nullptr;
 }

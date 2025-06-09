@@ -1,6 +1,6 @@
 #include <math.h>
 #include <stdlib.h>
-#include "SolidObject.h"
+#include "Object.h"
 #include "gfx/vec2.h"
 
 #define IX(i, j) ((i) + (N + 2) * (j))
@@ -24,7 +24,7 @@ void add_source(int N, float *x, float *s, float dt) {
         x[i] += dt * s[i];
 }
 
-void set_bnd(int N, int b, float *x, SolidObject **obstacle_mask) {
+void set_bnd(int N, int b, float *x, Object **obstacle_mask) {
     int i, j;
 
     // Update the outer cells (i.e. border)
@@ -76,7 +76,7 @@ void set_bnd(int N, int b, float *x, SolidObject **obstacle_mask) {
     END_FOR
 }
 
-void lin_solve(int N, int b, float *x, float *x0, float a, float c, SolidObject **obstacle_mask) {
+void lin_solve(int N, int b, float *x, float *x0, float a, float c, Object **obstacle_mask) {
     int i, j, k;
 
     for (k = 0; k < 20; k++) {
@@ -87,12 +87,12 @@ void lin_solve(int N, int b, float *x, float *x0, float a, float c, SolidObject 
     }
 }
 
-void diffuse(int N, int b, float *x, float *x0, float diff, float dt, SolidObject **obstacle_mask) {
+void diffuse(int N, int b, float *x, float *x0, float diff, float dt, Object **obstacle_mask) {
     float a = dt * diff * N * N;
     lin_solve(N, b, x, x0, a, 1 + 4 * a, obstacle_mask);
 }
 
-void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, SolidObject **obstacle_mask) {
+void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, Object **obstacle_mask) {
     int i, j, i0, j0, i1, j1;
     float x, y, s0, t0, s1, t1, dt0;
 
@@ -121,7 +121,7 @@ void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, Sol
     set_bnd(N, b, d, obstacle_mask);
 }
 
-void project(int N, float *u, float *v, float *p, float *div, SolidObject **obstacle_mask) {
+void project(int N, float *u, float *v, float *p, float *div, Object **obstacle_mask) {
     int i, j;
 
     FOR_EACH_CELL
@@ -166,7 +166,7 @@ void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float eps
     END_FOR
 }
 
-void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, SolidObject **obstacle_mask) {
+void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask) {
     add_source(N, x, x0, dt);
     SWAP(x0, x);
     diffuse(N, 0, x, x0, diff, dt, obstacle_mask);
@@ -174,7 +174,7 @@ void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float
     advect(N, 0, x, x0, u, v, dt, obstacle_mask);
 }
 
-void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, SolidObject **obstacle_mask) {
+void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask) {
     // vel: u,v - source forces u0, v0
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
