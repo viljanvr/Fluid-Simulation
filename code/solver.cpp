@@ -1,3 +1,8 @@
+#include <math.h>
+#include <stdlib.h>
+#include "Object.h"
+#include "gfx/vec2.h"
+
 #define IX(i, j) ((i) + (N + 2) * (j))
 #define SWAP(x0, x)                                                                                                    \
     {                                                                                                                  \
@@ -12,10 +17,6 @@
     }                                                                                                                  \
     }
 
-#include <iostream>
-#include <math.h>
-#include <stdlib.h>
-
 
 void add_source(int N, float *x, float *s, float dt) {
     int i, size = (N + 2) * (N + 2);
@@ -23,67 +24,75 @@ void add_source(int N, float *x, float *s, float dt) {
         x[i] += dt * s[i];
 }
 
-void set_bnd(int N, int b, float *x, bool* obstacles) {
+void set_bnd(int N, int b, float *x, Object **obstacle_mask) {
     int i, j;
-    for (size_t i = 0; i <= N+1; i++) {
-        for (size_t j = 0; j <= N+1; j++) {
-            if (!obstacles[IX(i,j)]) {
-                continue;
-            }
-            int fluid_neighbor_count = 0;
-            float sum = 0.0;
-            if (i > 0 && !obstacles[IX(i-1, j)]) {
-                sum += b == 1 ? -x[IX(i-1, j)] : x[IX(i-1, j)];
-                fluid_neighbor_count += 1;
-            }
-            if (i < N+1 && !obstacles[IX(i+1, j)]) {
-                sum += b == 1 ? -x[IX(i+1, j)] : x[IX(i+1, j)];
-                fluid_neighbor_count += 1;
-            }
-            if (j < N+1 && !obstacles[IX(i, j+1)]) {
-                sum += b == 2 ? -x[IX(i, j+1)] : x[IX(i, j+1)];
-                fluid_neighbor_count += 1;
-            }
-            if (j > 0 && !obstacles[IX(i, j-1)]) {
-                sum += b == 2 ? -x[IX(i, j-1)] : x[IX(i, j-1)];
-                fluid_neighbor_count += 1;
-            }
-            if (fluid_neighbor_count > 0) {
-                x[IX(i, j)] = sum / fluid_neighbor_count;
-            } else {
-                x[IX(i, j)] = 0.0;
-            }
-        }
+
+    // Update the outer cells (i.e. border)
+    for (i = 1; i <= N; i++) {
+        x[IX(0, i)] = b == 1 ? -x[IX(1, i)] : x[IX(1, i)];
+        x[IX(N + 1, i)] = b == 1 ? -x[IX(N, i)] : x[IX(N, i)];
+        x[IX(i, 0)] = b == 2 ? -x[IX(i, 1)] : x[IX(i, 1)];
+        x[IX(i, N + 1)] = b == 2 ? -x[IX(i, N)] : x[IX(i, N)];
     }
-    //for (i = 1; i <= N; i++) {
-    //    x[IX(0, i)] = b == 1 ? -x[IX(1, i)] : x[IX(1, i)];
-    //    x[IX(N + 1, i)] = b == 1 ? -x[IX(N, i)] : x[IX(N, i)];
-    //    x[IX(i, 0)] = b == 2 ? -x[IX(i, 1)] : x[IX(i, 1)];
-    //    x[IX(i, N + 1)] = b == 2 ? -x[IX(i, N)] : x[IX(i, N)];
-    //}
-    //x[IX(0, 0)] = 0.5f * (x[IX(1, 0)] + x[IX(0, 1)]);
-    //x[IX(0, N + 1)] = 0.5f * (x[IX(1, N + 1)] + x[IX(0, N)]);
-    //x[IX(N + 1, 0)] = 0.5f * (x[IX(N, 0)] + x[IX(N + 1, 1)]);
-    //x[IX(N + 1, N + 1)] = 0.5f * (x[IX(N, N + 1)] + x[IX(N + 1, N)]);
+    x[IX(0, 0)] = 0.5f * (x[IX(1, 0)] + x[IX(0, 1)]);
+    x[IX(0, N + 1)] = 0.5f * (x[IX(1, N + 1)] + x[IX(0, N)]);
+    x[IX(N + 1, 0)] = 0.5f * (x[IX(N, 0)] + x[IX(N + 1, 1)]);
+    x[IX(N + 1, N + 1)] = 0.5f * (x[IX(N, N + 1)] + x[IX(N + 1, N)]);
+
+
+    // Update the inner cells (occupied by solid objects)
+    FOR_EACH_CELL
+    if (!obstacle_mask[IX(i, j)]) {
+        continue;
+    }
+    int fluid_neighbor_count = 0;
+    float sum = 0.0;
+
+    if (!obstacle_mask[IX(i - 1, j)]) {
+        sum += b == 1 ? -x[IX(i - 1, j)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[0]
+                      : x[IX(i - 1, j)];
+        fluid_neighbor_count += 1;
+    }
+    if (!obstacle_mask[IX(i + 1, j)]) {
+        sum += b == 1 ? -x[IX(i + 1, j)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[0]
+                      : x[IX(i + 1, j)];
+        fluid_neighbor_count += 1;
+    }
+    if (!obstacle_mask[IX(i, j + 1)]) {
+        sum += b == 2 ? -x[IX(i, j + 1)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[1]
+                      : x[IX(i, j + 1)];
+        fluid_neighbor_count += 1;
+    }
+    if (!obstacle_mask[IX(i, j - 1)]) {
+        sum += b == 2 ? -x[IX(i, j - 1)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[1]
+                      : x[IX(i, j - 1)];
+        fluid_neighbor_count += 1;
+    }
+    if (fluid_neighbor_count > 0) {
+        x[IX(i, j)] = sum / fluid_neighbor_count;
+    } else {
+        x[IX(i, j)] = 0.0;
+    }
+    END_FOR
 }
 
-void lin_solve(int N, int b, float *x, float *x0, float a, float c, bool *obstacles) {
+void lin_solve(int N, int b, float *x, float *x0, float a, float c, Object **obstacle_mask) {
     int i, j, k;
 
     for (k = 0; k < 20; k++) {
         FOR_EACH_CELL
         x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i - 1, j)] + x[IX(i + 1, j)] + x[IX(i, j - 1)] + x[IX(i, j + 1)])) / c;
         END_FOR
-        set_bnd(N, b, x, obstacles);
+        set_bnd(N, b, x, obstacle_mask);
     }
 }
 
-void diffuse(int N, int b, float *x, float *x0, float diff, float dt, bool *obstacles) {
+void diffuse(int N, int b, float *x, float *x0, float diff, float dt, Object **obstacle_mask) {
     float a = dt * diff * N * N;
-    lin_solve(N, b, x, x0, a, 1 + 4 * a, obstacles);
+    lin_solve(N, b, x, x0, a, 1 + 4 * a, obstacle_mask);
 }
 
-void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, bool *obstacles) {
+void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, Object **obstacle_mask) {
     int i, j, i0, j0, i1, j1;
     float x, y, s0, t0, s1, t1, dt0;
 
@@ -109,27 +118,27 @@ void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, boo
     t0 = 1 - t1;
     d[IX(i, j)] = s0 * (t0 * d0[IX(i0, j0)] + t1 * d0[IX(i0, j1)]) + s1 * (t0 * d0[IX(i1, j0)] + t1 * d0[IX(i1, j1)]);
     END_FOR
-    set_bnd(N, b, d, obstacles);
+    set_bnd(N, b, d, obstacle_mask);
 }
 
-void project(int N, float *u, float *v, float *p, float *div, bool *obstacles) {
+void project(int N, float *u, float *v, float *p, float *div, Object **obstacle_mask) {
     int i, j;
 
     FOR_EACH_CELL
     div[IX(i, j)] = -0.5f * (u[IX(i + 1, j)] - u[IX(i - 1, j)] + v[IX(i, j + 1)] - v[IX(i, j - 1)]) / N;
     p[IX(i, j)] = 0;
     END_FOR
-    set_bnd(N, 0, div, obstacles);
-    set_bnd(N, 0, p, obstacles);
+    set_bnd(N, 0, div, obstacle_mask);
+    set_bnd(N, 0, p, obstacle_mask);
 
-    lin_solve(N, 0, p, div, 1, 4, obstacles);
+    lin_solve(N, 0, p, div, 1, 4, obstacle_mask);
 
     FOR_EACH_CELL
     u[IX(i, j)] -= 0.5f * N * (p[IX(i + 1, j)] - p[IX(i - 1, j)]);
     v[IX(i, j)] -= 0.5f * N * (p[IX(i, j + 1)] - p[IX(i, j - 1)]);
     END_FOR
-    set_bnd(N, 1, u, obstacles);
-    set_bnd(N, 2, v, obstacles);
+    set_bnd(N, 1, u, obstacle_mask);
+    set_bnd(N, 2, v, obstacle_mask);
 }
 
 // Update u and v inplace. curl is a buffer used in the function.
@@ -157,35 +166,35 @@ void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float eps
     END_FOR
 }
 
-void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, bool *obstacles) {
+void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask) {
     add_source(N, x, x0, dt);
     SWAP(x0, x);
-    diffuse(N, 0, x, x0, diff, dt, obstacles);
+    diffuse(N, 0, x, x0, diff, dt, obstacle_mask);
     SWAP(x0, x);
-    advect(N, 0, x, x0, u, v, dt, obstacles);
+    advect(N, 0, x, x0, u, v, dt, obstacle_mask);
 }
 
-void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, bool *obstacles) {
+void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask) {
     // vel: u,v - source forces u0, v0
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
     // vel: u,v - buffers u0, v0
-    add_vorticity_conf_forces(N, u, v, u0, 160, dt);
+    add_vorticity_conf_forces(N, u, v, u0, 250, dt);
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
     // vel: u0,v0 - buffers u, v
-    diffuse(N, 1, u, u0, visc, dt, obstacles);
-    diffuse(N, 2, v, v0, visc, dt, obstacles);
+    diffuse(N, 1, u, u0, visc, dt, obstacle_mask);
+    diffuse(N, 2, v, v0, visc, dt, obstacle_mask);
     // vel: u,v - buffers u0, v0
-    project(N, u, v, u0, v0, obstacles);
+    project(N, u, v, u0, v0, obstacle_mask);
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
     // vel: u0,v0 - buffers u, v
-    advect(N, 1, u, u0, u0, v0, dt, obstacles);
-    advect(N, 2, v, v0, u0, v0, dt, obstacles);
+    advect(N, 1, u, u0, u0, v0, dt, obstacle_mask);
+    advect(N, 2, v, v0, u0, v0, dt, obstacle_mask);
     // vel: u,v - buffers u0, v0
-    project(N, u, v, u0, v0, obstacles);
+    project(N, u, v, u0, v0, obstacle_mask);
     // vel: u,v - buffers u0, v0
 }

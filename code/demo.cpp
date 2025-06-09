@@ -16,10 +16,12 @@
 
 #include <cctype>
 #include <cmath>
-#include <iostream>
-#include <ostream>
+#include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
+#include "SolidCircle.h"
+#include "SolidRectangle.h"
+#include "gfx/vec2.h"
 #include "jet_colormap.h"
 #include "viridis_colormap.h"
 
@@ -35,8 +37,8 @@
 
 /* external definitions (from solver.c) */
 
-extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, bool *obstacles);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, bool *obstacles);
+extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask);
 
 /* global variables */
 
@@ -47,14 +49,17 @@ static int dvel;
 
 static float *u, *v, *u_prev, *v_prev;
 static float *dens, *dens_prev;
-static bool *obstacles;
 
 static int win_id;
-static int win_x, win_y;
+static int win_x, win_y; // Window with in pixels
 static int mouse_down[3];
-static int omx, omy, mx, my;
+static int omx, omy, mx, my; // Pixel-coordinate
 
 static float (*colormap)[3] = jet_colormap;
+
+static Object **obstacle_mask;
+static std::vector<Object *> obstacles;
+static Object *interacting_obstacle;
 
 /*
   ----------------------------------------------------------------------
@@ -75,8 +80,11 @@ static void free_data(void) {
         free(dens);
     if (dens_prev)
         free(dens_prev);
-    if (obstacles)
-        free(obstacles);
+    if (obstacle_mask)
+        free(obstacle_mask);
+    for (auto o: obstacles) {
+        free(o);
+    }
 }
 
 static void clear_data(void) {
@@ -84,29 +92,20 @@ static void clear_data(void) {
 
     for (i = 0; i < size; i++) {
         u[i] = v[i] = u_prev[i] = v_prev[i] = dens[i] = dens_prev[i] = 0.0f;
-        obstacles[i] = false;
-    }
-    for (size_t i = 0; i <= N; i++) {
-        obstacles[IX(i, 0)] = true;
-        obstacles[IX(N+1, i)] = true;
-        obstacles[IX(N+1 - i, N+1)] = true;
-        obstacles[IX(0, N+1 - i)] = true;
-    }
-    for (size_t i = N / 2 - 10; i < N / 2; i++) {
-        for (size_t j = 1; j < N / 2 - 5; j++) {
-            obstacles[IX(i, j)] = true;
-        }
-        for (size_t j = N - 10; j > N / 2 + 5; j--) {
-            obstacles[IX(i, j)] = true;
-        }
+        obstacle_mask[i] = nullptr;
     }
 
-    //for (size_t i = 20; i < 30; i++) {
-    //    for (size_t j = 10; j < 20; j++) {
-    //        obstacles[IX(i, j)] = true;
-    //    }
-    //}
+    for (auto o: obstacles) {
+        free(o);
+    }
+    obstacles.clear();
 
+    // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1));
+    // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
+    obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
+    for (i = 0; i < obstacles.size(); i++) {
+        obstacles[i]->addToObstacleMask(N, obstacle_mask);
+    }
 }
 
 static int allocate_data(void) {
@@ -118,9 +117,9 @@ static int allocate_data(void) {
     v_prev = (float *) malloc(size * sizeof(float));
     dens = (float *) malloc(size * sizeof(float));
     dens_prev = (float *) malloc(size * sizeof(float));
-    obstacles = (bool *) malloc(size * sizeof(bool));
+    obstacle_mask = (Object **) malloc(size * sizeof(Object *));
 
-    if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev || !obstacles) {
+    if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev || !obstacle_mask) {
         fprintf(stderr, "cannot allocate data\n");
         return (0);
     }
@@ -160,14 +159,20 @@ static void color_on_direction(float u, float v, float &r, float &g, float &b) {
     r = sqrt(r);
     g = sqrt(g);
     b = sqrt(b);
-    //r = std::max(v, 0.0f) + std::max(u, 0.0f);
-    //g = std::abs(u);
-    //b = std::max(-v, 0.0f);
+    // r = std::max(v, 0.0f) + std::max(u, 0.0f);
+    // g = std::abs(u);
+    // b = std::max(-v, 0.0f);
     float magnitude = std::sqrt(r * r + g * g + b * b);
     float target_magnitude = std::clamp(std::sqrt(u * u + v * v) * 20, 0.45f, 1.3f);
     r = r / magnitude * target_magnitude;
     g = g / magnitude * target_magnitude;
     b = b / magnitude * target_magnitude;
+}
+
+static void draw_obstacles() {
+    for (auto o: obstacles) {
+        o->draw();
+    }
 }
 
 static void draw_velocity(void) {
@@ -185,9 +190,9 @@ static void draw_velocity(void) {
         x = (i - 0.5f) * h;
         for (j = 1; j <= N; j++) {
             y = (j - 0.5f) * h;
-            //float magnitude = std::sqrt(u[IX(i, j)] * u[IX(i, j)] + v[IX(i, j)] * v[IX(i, j)]);
-            //from_colormap(magnitude, 0.15f, &r, &g, &b);
-            color_on_direction(u[IX(i,j)], v[IX(i,j)], r, g, b);
+            // float magnitude = std::sqrt(u[IX(i, j)] * u[IX(i, j)] + v[IX(i, j)] * v[IX(i, j)]);
+            // from_colormap(magnitude, 0.15f, &r, &g, &b);
+            color_on_direction(u[IX(i, j)], v[IX(i, j)], r, g, b);
             glColor3f(r, g, b);
             glVertex2f(x, y);
             glVertex2f(x + u[IX(i, j)], y + v[IX(i, j)]);
@@ -210,10 +215,10 @@ static void draw_density(void) {
         for (j = 0; j <= N; j++) {
             y = (j - 0.5f) * h;
 
-            //d00 = obstacles[IX(i,j)] ? 1 : dens[IX(i, j)];
-            //d01 = obstacles[IX(i,j + 1)] ? 1 : dens[IX(i, j + 1)];
-            //d10 = obstacles[IX(i + 1,j)] ? 1 : dens[IX(i + 1, j)];
-            //d11 = obstacles[IX(i + 1,j + 1)] ? 1 : dens[IX(i + 1, j + 1)];
+            // d00 = obstacles[IX(i,j)] ? 1 : dens[IX(i, j)];
+            // d01 = obstacles[IX(i,j + 1)] ? 1 : dens[IX(i, j + 1)];
+            // d10 = obstacles[IX(i + 1,j)] ? 1 : dens[IX(i + 1, j)];
+            // d11 = obstacles[IX(i + 1,j + 1)] ? 1 : dens[IX(i + 1, j + 1)];
 
             d00 = dens[IX(i, j)];
             d01 = dens[IX(i, j + 1)];
@@ -236,18 +241,18 @@ static void draw_density(void) {
 
 /*
   ----------------------------------------------------------------------
-   relates mouse movements to forces sources
+   User interaction handeling
   ----------------------------------------------------------------------
 */
 
-static void get_from_UI(float *d, float *u, float *v) {
+static void add_dens_and_vel_from_UI(float *d, float *u, float *v) {
     int i, j, size = (N + 2) * (N + 2);
 
     for (i = 0; i < size; i++) {
         u[i] = v[i] = d[i] = 0.0f;
     }
 
-    if (!mouse_down[0] && !mouse_down[2])
+    if (!mouse_down[GLUT_LEFT_BUTTON] && !mouse_down[GLUT_RIGHT_BUTTON] || interacting_obstacle)
         return;
 
     i = (int) ((mx / (float) win_x) * N + 1);
@@ -256,19 +261,80 @@ static void get_from_UI(float *d, float *u, float *v) {
     if (i < 1 || i > N || j < 1 || j > N)
         return;
 
-    if (mouse_down[0]) {
+    if (mouse_down[GLUT_LEFT_BUTTON]) {
         u[IX(i, j)] = force * (mx - omx);
         v[IX(i, j)] = force * (omy - my);
     }
 
-    if (mouse_down[2]) {
+    if (mouse_down[GLUT_RIGHT_BUTTON]) {
         d[IX(i, j)] = source;
     }
+}
 
-    omx = mx;
-    omy = my;
+// Debug helper funciton
+static void print_obstacle_mask() {
+    for (int x = 0; x < N + 4; x++)
+        std::cout << "-";
+    std::cout << "\n";
 
-    return;
+    for (int j = 0; j < N + 2; j++) {
+        std::cout << "|";
+        for (int i = 0; i < N + 2; i++) {
+            std::cout << (obstacle_mask[IX(i, (N + 1) - j)] ? "█" : "x");
+        }
+        std::cout << "|\n";
+    }
+
+    for (int x = 0; x < N + 4; x++)
+        std::cout << "-";
+    std::cout << std::endl;
+}
+
+static void set_obstacle_mask() {
+    for (int i = 0; i <= N + 1; i++) {
+        for (int j = 0; j <= N + 1; j++) {
+            obstacle_mask[IX(i, j)] = nullptr;
+        }
+    }
+    for (int i = 0; i < obstacles.size(); i++) {
+        obstacles[i]->addToObstacleMask(N, obstacle_mask);
+    }
+    // print_obstacle_mask();
+}
+
+static void update_interactable_object() {
+    if (!interacting_obstacle)
+        return;
+
+    float delta_x = (mx - omx) / (float) win_x;
+    float delta_y = (omy - my) / (float) win_y;
+
+    interacting_obstacle->setVelocity(Vec2f(delta_x, delta_y));
+    interacting_obstacle->moveObject();
+
+    set_obstacle_mask();
+}
+
+static void begin_object_interaction() {
+    float x = mx / (float) win_x;
+    float y = ((win_y - my) / (float) win_y);
+
+    for (auto o: obstacles) {
+        if (o->isInside(x, y)) {
+            interacting_obstacle = o;
+        }
+    }
+}
+
+static void end_object_interaction() {
+    if (!interacting_obstacle)
+        return;
+    interacting_obstacle->alignPositionToGrid(N);
+
+    set_obstacle_mask();
+
+    interacting_obstacle->setVelocity(Vec2f(0.0, 0.0));
+    interacting_obstacle = nullptr;
 }
 
 /*
@@ -309,9 +375,15 @@ static void key_func(unsigned char key, int x, int y) {
 
 static void mouse_func(int button, int state, int x, int y) {
     omx = mx = x;
-    omx = my = y;
+    omy = my = y;
 
     mouse_down[button] = state == GLUT_DOWN;
+
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+        begin_object_interaction();
+
+    else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+        end_object_interaction();
 }
 
 static void motion_func(int x, int y) {
@@ -328,9 +400,13 @@ static void reshape_func(int width, int height) {
 }
 
 static void idle_func(void) {
-    get_from_UI(dens_prev, u_prev, v_prev);
-    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacles);
-    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacles);
+    add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
+    update_interactable_object();
+    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask);
+    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask);
+
+    omx = mx;
+    omy = my;
 
     glutSetWindow(win_id);
     glutPostRedisplay();
@@ -343,6 +419,8 @@ static void display_func(void) {
         draw_velocity();
     else
         draw_density();
+
+    draw_obstacles();
 
     post_display();
 }
@@ -359,6 +437,9 @@ static void open_glut_window(void) {
     glutInitWindowPosition(0, 0);
     glutInitWindowSize(win_x, win_y);
     win_id = glutCreateWindow("Alias | wavefront");
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
