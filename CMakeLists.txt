@@ -28,12 +28,13 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE HAVE_CONFIG_H)
 target_include_directories(${PROJECT_NAME} PRIVATE
         include
         include/SolidObjects
+        include/Colormaps
 )
 
 if(WIN32)
-  target_include_directories(${PROJECT_NAME} PRIVATE include/windows)
+  target_include_directories(${PROJECT_NAME} PRIVATE include/Utils/windows)
 elseif(UNIX)
-  target_include_directories(${PROJECT_NAME} PRIVATE include/linux)
+  target_include_directories(${PROJECT_NAME} PRIVATE include/Utils/linux)
 endif()
 
 # OS-specific OpenGL/GLUT configuration
