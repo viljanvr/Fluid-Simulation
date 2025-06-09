@@ -308,9 +308,12 @@ static void update_interactable_object() {
 
     float delta_x = (mx - omx) / (float) win_x;
     float delta_y = (omy - my) / (float) win_y;
+    Vec2f target_vel = Vec2f(delta_x / dt, delta_y / dt);
+    Vec2f previous_vel = interacting_obstacle->getCGVelocity();
+    float smoothing = 0.8f;
 
-    interacting_obstacle->setVelocity(Vec2f(delta_x, delta_y));
-    interacting_obstacle->moveObject();
+    interacting_obstacle->setVelocity(smoothing * previous_vel + (1.0 - smoothing) * target_vel);
+    interacting_obstacle->moveObject(dt);
 
     set_obstacle_mask();
 }

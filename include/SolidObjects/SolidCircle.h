@@ -12,7 +12,7 @@ public:
     Vec2f getVelocityFromPosition(float x, float y) override;
     Vec2f getCGVelocity() override;
     void setVelocity(Vec2f velocity) override;
-    void moveObject() override;
+    void moveObject(float dt) override;
     void alignPositionToGrid(int N) override;
     void addToObstacleMask(int N, Object **obstacle_mask) override;
     void draw() override;

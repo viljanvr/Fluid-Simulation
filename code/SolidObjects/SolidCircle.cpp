@@ -47,7 +47,7 @@ void SolidCircle::addToObstacleMask(int N, Object **obstacle_mask) {
 
 void SolidCircle::setVelocity(Vec2f velocity) { m_Velocity = velocity; }
 
-void SolidCircle::moveObject() { m_Position += m_Velocity; }
+void SolidCircle::moveObject(float dt) { m_Position += m_Velocity * dt; }
 
 bool SolidCircle::isInside(float x, float y) {
     float delta_x = x - m_Position[0];

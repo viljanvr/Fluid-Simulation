@@ -39,9 +39,9 @@ void SolidRectangle::addToObstacleMask(int N, Object **obstacle_mask) {
 
 void SolidRectangle::setVelocity(Vec2f velocity) { m_Velocity = velocity; }
 
-void SolidRectangle::moveObject() {
-    m_P1 += m_Velocity;
-    m_P2 += m_Velocity;
+void SolidRectangle::moveObject(float dt) {
+    m_P1 += m_Velocity * dt;
+    m_P2 += m_Velocity * dt;
 }
 
 bool SolidRectangle::isInside(float x, float y) { return x >= m_P1[0] && y >= m_P1[1] && x <= m_P2[0] && y <= m_P2[1]; }
