@@ -7,8 +7,8 @@
 
 class SolidCircle : public Object {
 public:
-    SolidCircle(int N, int x, int y, int radius);
-    SolidCircle(int N, Vec2f position, float radius);
+    SolidCircle(int N, int x, int y, int radius, float mass);
+    SolidCircle(int N, Vec2f position, float radius, float mass);
     Vec2f getVelocityFromPosition(float x, float y) override;
     Vec2f getCGVelocity() override;
     void setVelocity(Vec2f velocity) override;
@@ -17,6 +17,7 @@ public:
     void addToObstacleMask(int N, Object **obstacle_mask) override;
     void draw() override;
     bool isInside(float x, float y) override;
+    void addForceAtPosition(Vec2f force, Vec2f position) override;
 
 private:
     float m_Radius;

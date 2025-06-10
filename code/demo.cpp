@@ -101,8 +101,8 @@ static void clear_data(void) {
     }
     obstacles.clear();
 
-    obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1));
-    // obstacles.push_back(new SolidRectangle(N, Vec2f(0.50f, 0.50f), 0.20f, 0.20f));
+    // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1, 1.0f));
+    obstacles.push_back(new SolidRectangle(N, Vec2f(0.50f, 0.50f), 0.30f, 0.20f, 1.0f));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
@@ -302,20 +302,17 @@ static void set_obstacle_mask() {
     // print_obstacle_mask();
 }
 
-static void update_interactable_object() {
+static void handle_interaction() {
     if (!interacting_obstacle)
         return;
 
     float delta_x = (mx - omx) / (float) win_x;
     float delta_y = (omy - my) / (float) win_y;
-    Vec2f target_vel = Vec2f(delta_x / dt, delta_y / dt);
-    Vec2f previous_vel = interacting_obstacle->getCGVelocity();
-    float smoothing = 0.8f;
+    float strength = 2.0f;
+    Vec2f force = strength * Vec2f(delta_x, delta_y);
+    interacting_obstacle->addForceAtPosition(force, Vec2f(mx, my));
 
-    interacting_obstacle->setVelocity(smoothing * previous_vel + (1.0 - smoothing) * target_vel);
-    interacting_obstacle->moveObject(dt);
-
-    set_obstacle_mask();
+    //set_obstacle_mask();
 }
 
 static void begin_object_interaction() {
@@ -332,12 +329,16 @@ static void begin_object_interaction() {
 static void end_object_interaction() {
     if (!interacting_obstacle)
         return;
-    interacting_obstacle->alignPositionToGrid(N);
+    // interacting_obstacle->alignPositionToGrid(N);
 
     set_obstacle_mask();
-
-    interacting_obstacle->setVelocity(Vec2f(0.0, 0.0));
     interacting_obstacle = nullptr;
+}
+
+static void move_objects() {
+    for (auto o: obstacles) {
+        o->moveObject(dt);
+    }
 }
 
 /*
@@ -382,10 +383,10 @@ static void mouse_func(int button, int state, int x, int y) {
 
     mouse_down[button] = state == GLUT_DOWN;
 
-    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
+    if ((button == GLUT_LEFT_BUTTON || button == GLUT_RIGHT_BUTTON) && state == GLUT_DOWN)
         begin_object_interaction();
 
-    else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
+    else if ((button == GLUT_LEFT_BUTTON || button == GLUT_RIGHT_BUTTON) && state == GLUT_UP)
         end_object_interaction();
 }
 
@@ -404,7 +405,9 @@ static void reshape_func(int width, int height) {
 
 static void idle_func(void) {
     add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
-    update_interactable_object();
+    handle_interaction();
+    move_objects();
+    set_obstacle_mask();
     vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask);
     dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask);
 

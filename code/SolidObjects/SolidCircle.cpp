@@ -13,13 +13,13 @@
 #define IX(i, j) ((i) + (N + 2) * (j))
 
 
-SolidCircle::SolidCircle(int N, Vec2f position, float radius) :
-    Object(position, Vec2f(0.0,0.0)), m_Radius(radius) {
+SolidCircle::SolidCircle(int N, Vec2f position, float radius, float mass) :
+    Object(position, Vec2f(0.0,0.0), mass), m_Radius(radius) {
     alignPositionToGrid(N);
 }
 
-SolidCircle::SolidCircle(int N, int x, int y, int radius) :
-    Object(Vec2f((float) x / N, (float) y / N), Vec2f(0.0,0.0)), m_Radius((float) radius / N) {}
+SolidCircle::SolidCircle(int N, int x, int y, int radius, float mass) :
+    Object(Vec2f((float) x / N, (float) y / N), Vec2f(0.0,0.0), mass), m_Radius((float) radius / N) {}
 
 Vec2f SolidCircle::getVelocityFromPosition(float x, float y) { return m_Velocity; }
 
@@ -44,6 +44,8 @@ void SolidCircle::addToObstacleMask(int N, Object **obstacle_mask) {
         }
     }
 }
+
+void SolidCircle::addForceAtPosition(Vec2f force, Vec2f position) {}
 
 void SolidCircle::setVelocity(Vec2f velocity) { m_Velocity = velocity; }
 
