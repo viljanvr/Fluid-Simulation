@@ -18,9 +18,6 @@ public:
     void draw() override;
     bool isInside(float x, float y) override;
 
-    Vec2f m_Velocity;
-
 private:
-    Vec2f m_Position;
     float m_Radius;
 };

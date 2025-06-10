@@ -5,8 +5,8 @@
 
 class SolidRectangle : public Object {
 public:
-    SolidRectangle(int N, int x1, int y1, int x2, int y2);
-    SolidRectangle(int N, Vec2f p1, Vec2f p2);
+    SolidRectangle(int N, int x, int y, int w, int h);
+    SolidRectangle(int N, Vec2f position, float width, float height);
     Vec2f getVelocityFromPosition(float x, float y) override;
     Vec2f getCGVelocity() override;
     void setVelocity(Vec2f velocity) override;
@@ -16,10 +16,9 @@ public:
     void draw() override;
     bool isInside(float x, float y) override;
 
-    Vec2f m_Velocity;
 
 private:
-    // Obstacle is defined by to diagonal corners P1, P2
+    // In object space, i.e. relative to position
     Vec2f m_P1;
     Vec2f m_P2;
 };

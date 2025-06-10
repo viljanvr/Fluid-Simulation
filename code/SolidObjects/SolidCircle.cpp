@@ -14,12 +14,12 @@
 
 
 SolidCircle::SolidCircle(int N, Vec2f position, float radius) :
-    m_Position(position), m_Radius(radius), m_Velocity(0.0, 0.0) {
+    Object(position, Vec2f(0.0,0.0)), m_Radius(radius) {
     alignPositionToGrid(N);
 }
 
 SolidCircle::SolidCircle(int N, int x, int y, int radius) :
-    m_Position(Vec2f((float) x / N, (float) y / N)), m_Radius((float) radius / N), m_Velocity(0.0, 0.0) {}
+    Object(Vec2f((float) x / N, (float) y / N), Vec2f(0.0,0.0)), m_Radius((float) radius / N) {}
 
 Vec2f SolidCircle::getVelocityFromPosition(float x, float y) { return m_Velocity; }
 

@@ -13,12 +13,13 @@
 
   =======================================================================
 */
-
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
 #include "SolidCircle.h"
 #include "SolidRectangle.h"
 #include "gfx/vec2.h"
@@ -100,9 +101,8 @@ static void clear_data(void) {
     }
     obstacles.clear();
 
-    // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1));
-    // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
-    obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
+    obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1));
+    // obstacles.push_back(new SolidRectangle(N, Vec2f(0.50f, 0.50f), 0.20f, 0.20f));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
