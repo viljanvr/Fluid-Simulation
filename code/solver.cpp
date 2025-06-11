@@ -199,7 +199,7 @@ void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
     // vel: u,v - buffers u0, v0
-    add_vorticity_conf_forces(N, u, v, u0, 360, dt);
+    add_vorticity_conf_forces(N, u, v, u0, 160, dt);
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
