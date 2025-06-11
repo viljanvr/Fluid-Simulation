@@ -55,7 +55,7 @@ void SolidRectangle::alignPositionToGrid(int N) {
 
 void SolidRectangle::draw() {
     glBegin(GL_QUADS);
-    glColor4f(1.0f, 1.0f, 0.0f, 0.1f);
+    glColor4f(1.0f, 1.0f, 0.0f, 1.0f);
     glVertex2f((m_P1[0]), (m_P1[1])); // bottom left
     glVertex2f((m_P2[0]), (m_P1[1])); // bottom right
     glVertex2f((m_P2[0]), (m_P2[1])); // top right
