@@ -8,6 +8,9 @@ project(FluidSim CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Option to enable Address Sanitizer
+option(ENABLE_ASAN "Enable Address Sanitizer" OFF)
+
 # Set the source directory
 set(SRC_DIR code)
 
@@ -17,6 +20,7 @@ set(SOURCES
         ${SRC_DIR}/solver.cpp
         ${SRC_DIR}/SolidObjects/SolidRectangle.cpp
         ${SRC_DIR}/SolidObjects/SolidCircle.cpp
+        ${SRC_DIR}/SolidObjects/SolidBoundary.cpp
 )
 
 # Create the executable
@@ -50,3 +54,8 @@ elseif(UNIX)  # Linux / WSL
   )
   target_link_libraries(${PROJECT_NAME} OpenGL::GL OpenGL::GLU GLUT::GLUT m)
 endif()
+
+# Add Address Sanitizer flags if enabled
+message(STATUS "Address Sanitizer enabled")
+target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
+target_link_libraries(${PROJECT_NAME} -fsanitize=address)

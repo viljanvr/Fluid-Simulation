@@ -15,6 +15,7 @@ public:
     void addToObstacleMask(int N, Object **obstacle_mask) override;
     void draw() override;
     bool isInside(float x, float y) override;
+    std::optional<Vec2f> get_line_intersection(const Vec2f& start, const Vec2f& end) const override;
 
     Vec2f m_Velocity;
 

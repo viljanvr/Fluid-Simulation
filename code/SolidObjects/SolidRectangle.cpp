@@ -55,10 +55,55 @@ void SolidRectangle::alignPositionToGrid(int N) {
 
 void SolidRectangle::draw() {
     glBegin(GL_QUADS);
-    glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+    glColor4f(1.0f, 1.0f, 0.0f, 0.1f);
     glVertex2f((m_P1[0]), (m_P1[1])); // bottom left
     glVertex2f((m_P2[0]), (m_P1[1])); // bottom right
     glVertex2f((m_P2[0]), (m_P2[1])); // top right
     glVertex2f((m_P1[0]), (m_P2[1])); // top left
     glEnd();
+}
+
+std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
+    if (norm(start - end) < 1e-6) {
+        return std::nullopt;
+    }
+
+    // TODO with rb: remove redundant computation of cg and local coordinates of widht / height
+    Vec2f cg = (m_P1 + m_P2) / 2.0;
+    Vec2f size = m_P2 - m_P1;
+
+    // TODO with rb: update conversion start and end to local coordinates
+    Vec2f local_start = start - cg;
+    Vec2f local_end = end - cg;
+    Vec2f dir = local_end - local_start;
+
+    double tmin = 0.0;
+    double tmax = 1.0;
+    // Iterate over x and y
+    for (int i = 0; i < 2; i++) {
+        // Parallel to slab
+        if (std::abs(dir[i]) < 1e-8) {
+            if (local_start[i] < -size[i] / 2 || local_start[i] > size[i] / 2) {
+                return std::nullopt;
+            }
+        } else {
+            double t1 = (-size[i] / 2 - local_start[i]) / dir[i];
+            double t2 = (size[i] / 2 - local_start[i]) / dir[i];
+            if (t1 > t2) std::swap(t1, t2);
+
+            tmin = std::max(tmin, t1);
+            tmax = std::min(tmax, t2);
+
+            if (tmin > tmax) {
+                return std::nullopt;
+            }
+        }
+    }
+
+    Vec2f local_intersection = local_start + tmin * dir;
+
+    //TODO with rb: update conversion to world space coordinates
+    Vec2f intersection = local_intersection + cg;
+
+    return intersection;
 }

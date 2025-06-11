@@ -78,3 +78,7 @@ void SolidCircle::draw() {
     }
     glEnd();
 }
+
+std::optional<Vec2f> SolidCircle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
+    return std::nullopt;
+}

@@ -24,6 +24,7 @@
 #include "gfx/vec2.h"
 #include "jet_colormap.h"
 #include "viridis_colormap.h"
+#include "SolidBoundary.h"
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include <GLUT/glut.h>
@@ -37,8 +38,8 @@
 
 /* external definitions (from solver.c) */
 
-extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask);
+extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
 
 /* global variables */
 
@@ -102,7 +103,9 @@ static void clear_data(void) {
 
     // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1));
     // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
-    obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
+    //obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
+    obstacles.push_back(new SolidRectangle(N, Vec2f(0.10f, 0.40f), Vec2f(0.90f, 0.60)));
+    obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
@@ -299,7 +302,7 @@ static void set_obstacle_mask() {
     for (int i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
-    // print_obstacle_mask();
+    //print_obstacle_mask();
 }
 
 static void update_interactable_object() {
@@ -405,8 +408,8 @@ static void reshape_func(int width, int height) {
 static void idle_func(void) {
     add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
     update_interactable_object();
-    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask);
-    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask);
+    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask, obstacles);
+    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask, obstacles);
 
     omx = mx;
     omy = my;
