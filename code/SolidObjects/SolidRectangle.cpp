@@ -27,21 +27,30 @@ SolidRectangle::SolidRectangle(int N, int i, int j, int w, int h, float mass) :
         m_P1(Vec2f(-0.5 * (float) w / N, -0.5 * (float) h / N)),
         m_P2(Vec2f(0.5 * (float) w / N, 0.5 * (float) h / N)) {}
 
-Vec2f SolidRectangle::getVelocityFromPosition(float x, float y) { return m_Velocity; }
+Vec2f SolidRectangle::getVelocityFromPosition(float x, float y) {
+    Vec2f r = Vec2f(x, y) - m_Position;
+    Vec2 rPerp(-r[1], r[0]);
+    Vec2f rotationalVelocity = m_AngularVelocity * rPerp;
+    return rotationalVelocity + m_Velocity;
+}
 
 Vec2f SolidRectangle::getCGVelocity() { return m_Velocity; }
 
 void SolidRectangle::addToObstacleMask(int N, Object **obstacle_mask) {
     std::array<float, 4> bb = getBoundingBox();
-    int minX = std::max(0, (int) std::round(bb[0] * N));
-    int maxX = std::min(N, (int) std::round(bb[1] * N));
-    int minY = std::max(0, (int) std::round(bb[2] * N));
-    int maxY = std::min(N, (int) std::round(bb[3] * N));
+    int minI = std::max(0, (int) std::round(bb[0] * N));
+    int maxI = std::min(N, (int) std::round(bb[1] * N));
+    int minJ = std::max(0, (int) std::round(bb[2] * N));
+    int maxJ = std::min(N, (int) std::round(bb[3] * N));
 
-    for (int i = minX; i < maxX; i++) {
-        for (int j = minY; j < maxY; j++) {
-
-            obstacle_mask[IX(i + 1, j + 1)] = this;
+    for (int i = minI; i < maxI; i++) {
+        for (int j = minJ; j < maxJ; j++) {
+            float x = ((float) i + 0.5) / N;
+            float y = ((float) j + 0.5) / N;
+            Vec2f objectSpace = worldSpaceToObjectSpace(Vec2f(x, y));
+            if (objectSpace[0] >= m_P1[0] && objectSpace[1] >= m_P1[1] && objectSpace[0] <= m_P2[0] && objectSpace[1] <= m_P2[1]) {
+                obstacle_mask[IX(i + 1, j + 1)] = this;
+            }
         }
     }
 }
@@ -80,7 +89,7 @@ void SolidRectangle::alignPositionToGrid(int N) {
 
 void SolidRectangle::draw() {
     glBegin(GL_QUADS);
-    glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+    glColor4f(1.0f, 0.0f, 0.0f, 0.5f);
 
     // Calculate corner positions including rotation
     Vec2f botLeft = getWorldPosition(m_P1);

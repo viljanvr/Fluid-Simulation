@@ -16,6 +16,11 @@ public:
     virtual bool isInside(float x, float y) = 0;
     virtual std::optional<Vec2f> get_line_intersection(const Vec2f& start, const Vec2f& end) const = 0;
     virtual void addForceAtPosition(Vec2f force, Vec2f position) = 0;
+    Vec2f worldSpaceToObjectSpace(const Vec2f& position) {
+        Vec2f delta = position - m_Position;
+        return Vec2f(std::cos(m_Rotation) * delta[0] + std::sin(m_Rotation) * delta[1],
+                -std::sin(m_Rotation) * delta[0] + std::cos(m_Rotation) * delta[1]);
+    };
 
 protected:
     Vec2f m_Position;

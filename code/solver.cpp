@@ -58,24 +58,24 @@ void set_bnd(int N, int b, float *x, Object **obstacle_mask) {
     }
     int fluid_neighbor_count = 0;
     float sum = 0.0;
-
+    Vec2f velocityAtPosition = obstacle_mask[IX(i, j)]->getVelocityFromPosition(((float) i + 0.5) / N, ((float) j + 0.5) / N);
     if (i > 0 && !obstacle_mask[IX(i - 1, j)]) {
-        sum += b == 1 ? -x[IX(i - 1, j)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[0]
+        sum += b == 1 ? -x[IX(i - 1, j)] + 2 * velocityAtPosition[0]
                       : x[IX(i - 1, j)];
         fluid_neighbor_count += 1;
     }
     if (i < N + 1 && !obstacle_mask[IX(i + 1, j)]) {
-        sum += b == 1 ? -x[IX(i + 1, j)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[0]
+        sum += b == 1 ? -x[IX(i + 1, j)] + 2 * velocityAtPosition[0]
                       : x[IX(i + 1, j)];
         fluid_neighbor_count += 1;
     }
     if (j < N + 1 && !obstacle_mask[IX(i, j + 1)]) {
-        sum += b == 2 ? -x[IX(i, j + 1)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[1]
+        sum += b == 2 ? -x[IX(i, j + 1)] + 2 * velocityAtPosition[1]
                       : x[IX(i, j + 1)];
         fluid_neighbor_count += 1;
     }
     if (j > 0 && !obstacle_mask[IX(i, j - 1)]) {
-        sum += b == 2 ? -x[IX(i, j - 1)] + 2 * obstacle_mask[IX(i, j)]->getVelocityFromPosition(i, j)[1]
+        sum += b == 2 ? -x[IX(i, j - 1)] + 2 * velocityAtPosition[1]
                       : x[IX(i, j - 1)];
         fluid_neighbor_count += 1;
     }
