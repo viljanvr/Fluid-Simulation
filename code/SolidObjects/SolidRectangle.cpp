@@ -48,7 +48,7 @@ void SolidRectangle::addToObstacleMask(int N, Object **obstacle_mask) {
 
 void SolidRectangle::addForceAtPosition(Vec2f force, Vec2f position) {
     Vec2f relative = position - m_Position;
-    float torqueFactor = 0.0005;
+    float torqueFactor = 1.0;
     m_Torque += torqueFactor * (relative[0] * force[1] - relative[1] * force[0]);
     m_Force += force;    // Needs to be addition when we add collision
 }
@@ -143,6 +143,9 @@ std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, c
                 return std::nullopt;
             }
         } else {
+            if (std::abs(dir[i]) < 1e-6) {
+                continue;
+            }
             double t1 = (-size[i] / 2 - local_start[i]) / dir[i];
             double t2 = (size[i] / 2 - local_start[i]) / dir[i];
             if (t1 > t2) std::swap(t1, t2);
