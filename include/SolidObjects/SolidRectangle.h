@@ -10,7 +10,6 @@ public:
     SolidRectangle(int N, Vec2f position, float width, float height, float mass);
     Vec2f getVelocityFromPosition(float x, float y) override;
     Vec2f getCGVelocity() override;
-    Vec2f getWorldPosition(Vec2f relativePosition);
     std::array<float, 4> getBoundingBox();
     void setVelocity(Vec2f velocity) override;
     void moveObject(float dt) override;

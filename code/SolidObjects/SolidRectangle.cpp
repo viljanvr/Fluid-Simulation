@@ -89,13 +89,13 @@ void SolidRectangle::alignPositionToGrid(int N) {
 
 void SolidRectangle::draw() {
     glBegin(GL_QUADS);
-    glColor4f(1.0f, 0.0f, 0.0f, 0.5f);
+    glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
 
     // Calculate corner positions including rotation
-    Vec2f botLeft = getWorldPosition(m_P1);
-    Vec2f botRight = getWorldPosition(Vec2f(m_P2[0], m_P1[1]));
-    Vec2f topLeft = getWorldPosition(Vec2f(m_P1[0], m_P2[1]));
-    Vec2f topRight = getWorldPosition(m_P2);
+    Vec2f botLeft = objectSpaceToWorldSpace(m_P1);
+    Vec2f botRight = objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1]));
+    Vec2f topLeft = objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1]));
+    Vec2f topRight = objectSpaceToWorldSpace(m_P2);
 
     // Render world positions of the corners
     glVertex2f(botLeft[0], botLeft[1]);
@@ -105,19 +105,11 @@ void SolidRectangle::draw() {
     glEnd();
 }
 
-Vec2f SolidRectangle::getWorldPosition(Vec2f relativePos) {
-    float cosRot = std::cos(m_Rotation);
-    float sinRot = std::sin(m_Rotation);
-    Vec2f rotation (relativePos[0] * cosRot - relativePos[1] * sinRot,
-                        relativePos[0] * sinRot + relativePos[1] * cosRot);
-    return rotation + m_Position;
-}
-
 std::array<float, 4> SolidRectangle::getBoundingBox() {
-    Vec2f botLeft = getWorldPosition(m_P1);
-    Vec2f botRight = getWorldPosition(Vec2f(m_P2[0], m_P1[1]));
-    Vec2f topLeft = getWorldPosition(Vec2f(m_P1[0], m_P2[1]));
-    Vec2f topRight = getWorldPosition(m_P2);
+    Vec2f botLeft = objectSpaceToWorldSpace(m_P1);
+    Vec2f botRight = objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1]));
+    Vec2f topLeft = objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1]));
+    Vec2f topRight = objectSpaceToWorldSpace(m_P2);
     float minX = std::min({botLeft[0], botRight[0], topLeft[0], topRight[0]});
     float maxX = std::max({botLeft[0], botRight[0], topLeft[0], topRight[0]});
     float minY = std::min({botLeft[1], botRight[1], topLeft[1], topRight[1]});

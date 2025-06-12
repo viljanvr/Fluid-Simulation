@@ -66,6 +66,7 @@ static float (*colormap)[3] = jet_colormap;
 static Object **obstacle_mask;
 static std::vector<Object *> obstacles;
 static Object *interacting_obstacle;
+static Vec2f interaction_object_pos;
 
 /*
   ----------------------------------------------------------------------
@@ -247,6 +248,18 @@ static void draw_density(void) {
     glEnd();
 }
 
+static void draw_interaction(void) {
+    if (interacting_obstacle) {
+        glBegin(GL_LINES);
+        glColor3f(1.0f, 1.0f, 0.0f);
+        Vec2f object_world_pos = interacting_obstacle->objectSpaceToWorldSpace(interaction_object_pos);
+        Vec2f mouse_world_pos = Vec2f (mx / float(win_x), (win_y - my) / float(win_y));
+        glVertex2f(object_world_pos[0], object_world_pos[1]);
+        glVertex2f(mouse_world_pos[0], mouse_world_pos[1]);
+        glEnd();
+    }
+}
+
 /*
   ----------------------------------------------------------------------
    User interaction handeling
@@ -314,11 +327,16 @@ static void handle_interaction() {
     if (!interacting_obstacle)
         return;
 
-    float delta_x = (mx - omx) / (float) win_x;
-    float delta_y = (omy - my) / (float) win_y;
-    float strength = 2.0f;
-    Vec2f force = strength * Vec2f(delta_x, delta_y);
-    interacting_obstacle->addForceAtPosition(force, Vec2f(mx / (float) win_x, (win_y - my) / (float) win_y));
+    Vec2f object_world_pos = interacting_obstacle->objectSpaceToWorldSpace(interaction_object_pos);
+    Vec2f object_velocity = interacting_obstacle->getVelocityFromPosition(object_world_pos[0], object_world_pos[1]);
+    Vec2f mouse_world_pos = Vec2f (mx / float(win_x), (win_y - my) / float(win_y));
+
+    float spring_constant = 0.1;
+    float damping = 0.1;
+    Vec2f delta = (mouse_world_pos - object_world_pos);
+    Vec2f force = spring_constant * delta - damping * object_velocity;
+
+    interacting_obstacle->addForceAtPosition(force, object_world_pos);
 }
 
 static void begin_object_interaction() {
@@ -328,6 +346,7 @@ static void begin_object_interaction() {
     for (auto o: obstacles) {
         if (o->isInside(x, y)) {
             interacting_obstacle = o;
+            interaction_object_pos = o->worldSpaceToObjectSpace({x, y});
         }
     }
 }
@@ -440,8 +459,11 @@ static void display_func(void) {
 
     draw_obstacles();
 
+    draw_interaction();
+
     post_display();
 }
+
 
 /*
   ----------------------------------------------------------------------

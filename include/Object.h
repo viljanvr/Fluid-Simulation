@@ -21,6 +21,13 @@ public:
         return Vec2f(std::cos(m_Rotation) * delta[0] + std::sin(m_Rotation) * delta[1],
                 -std::sin(m_Rotation) * delta[0] + std::cos(m_Rotation) * delta[1]);
     };
+    Vec2f objectSpaceToWorldSpace(const Vec2f& position) {
+        float cosRot = std::cos(m_Rotation);
+        float sinRot = std::sin(m_Rotation);
+        Vec2f rotation (position[0] * cosRot - position[1] * sinRot,
+                            position[0] * sinRot + position[1] * cosRot);
+        return rotation + m_Position;
+    }
 
 protected:
     Vec2f m_Position;
