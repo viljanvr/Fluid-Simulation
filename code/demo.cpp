@@ -99,7 +99,7 @@ static void clear_data(void) {
     }
 
     for (auto o: obstacles) {
-        free(o);
+        delete o;
     }
     obstacles.clear();
 
