@@ -37,6 +37,9 @@ std::optional<Vec2f> SolidBoundary::get_line_intersection(const Vec2f& start, co
     }
     double t_min = 1.0;
     for (int i = 0; i < 2; i++) {
+        if (std::abs(dir[i]) < 1e-6) {
+            continue;
+        }
         double t1 = (0.5 - start[i] / dir[i]);
         double t2 = (m_N + 0.5 - start[i] / dir[i]);
         if (t1 >= 0) {
