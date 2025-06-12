@@ -1,4 +1,4 @@
-#include "SolidRectangle.h"
+#include "RectangleObstacle.h"
 #include <algorithm>
 #include <cmath>
 #include "gfx/vec2.h"
@@ -13,30 +13,28 @@
 #define IX(i, j) ((i) + (N + 2) * (j))
 
 
-SolidRectangle::SolidRectangle(int N, Vec2f position, float width, float height, float mass) :
-    Object(position, Vec2f(0.0,0.0), mass), m_P1(Vec2f(-0.5 * width,-0.5 * height)),
-        m_P2(Vec2f(0.5 * width, 0.5 * height)) {
+RectangleObstacle::RectangleObstacle(int N, Vec2f position, float width, float height, float mass) :
+    m_Position(position), m_Mass(mass), m_P1(Vec2f(-0.5 * width, -0.5 * height)),
+    m_P2(Vec2f(0.5 * width, 0.5 * height)) {
 
     m_Inertia = m_Mass * (4 * m_P2[0] * m_P2[0] + 4 * m_P2[1] * m_P2[1]) / 12;
     alignPositionToGrid(N);
 }
 
 // x, y, w, h in grid cells
-SolidRectangle::SolidRectangle(int N, int i, int j, int w, int h, float mass) :
-    Object(Vec2f((float) i / N, (float) j / N), Vec2f(0.0,0.0), mass),
-        m_P1(Vec2f(-0.5 * (float) w / N, -0.5 * (float) h / N)),
-        m_P2(Vec2f(0.5 * (float) w / N, 0.5 * (float) h / N)) {}
+RectangleObstacle::RectangleObstacle(int N, int i, int j, int w, int h, float mass) :
+    RectangleObstacle(N, Vec2f(((float) i + 0.5f) / N, ((float) j + 0.5f) / N), (float) w / N, (float) h / N, mass) {}
 
-Vec2f SolidRectangle::getVelocityFromPosition(float x, float y) {
+Vec2f RectangleObstacle::getVelocityFromPosition(float x, float y) {
     Vec2f r = Vec2f(x, y) - m_Position;
     Vec2 rPerp(-r[1], r[0]);
     Vec2f rotationalVelocity = m_AngularVelocity * rPerp;
     return rotationalVelocity + m_Velocity;
 }
 
-Vec2f SolidRectangle::getCGVelocity() { return m_Velocity; }
+Vec2f RectangleObstacle::getCGVelocity() { return m_Velocity; }
 
-void SolidRectangle::addToObstacleMask(int N, Object **obstacle_mask) {
+void RectangleObstacle::addToObstacleMask(int N, RectangleObstacle **obstacle_mask) {
     std::array<float, 4> bb = getBoundingBox();
     int minI = std::max(0, (int) std::round(bb[0] * N));
     int maxI = std::min(N, (int) std::round(bb[1] * N));
@@ -48,23 +46,24 @@ void SolidRectangle::addToObstacleMask(int N, Object **obstacle_mask) {
             float x = ((float) i + 0.5) / N;
             float y = ((float) j + 0.5) / N;
             Vec2f objectSpace = worldSpaceToObjectSpace(Vec2f(x, y));
-            if (objectSpace[0] >= m_P1[0] && objectSpace[1] >= m_P1[1] && objectSpace[0] <= m_P2[0] && objectSpace[1] <= m_P2[1]) {
+            if (objectSpace[0] >= m_P1[0] && objectSpace[1] >= m_P1[1] && objectSpace[0] <= m_P2[0] &&
+                objectSpace[1] <= m_P2[1]) {
                 obstacle_mask[IX(i + 1, j + 1)] = this;
             }
         }
     }
 }
 
-void SolidRectangle::addForceAtPosition(Vec2f force, Vec2f position) {
+void RectangleObstacle::addForceAtPosition(Vec2f force, Vec2f position) {
     Vec2f relative = position - m_Position;
     float torqueFactor = 1.0;
     m_Torque += torqueFactor * (relative[0] * force[1] - relative[1] * force[0]);
-    m_Force += force;    // Needs to be addition when we add collision
+    m_Force += force; // Needs to be addition when we add collision
 }
 
-void SolidRectangle::setVelocity(Vec2f velocity) { m_Velocity = velocity; }
+void RectangleObstacle::setVelocity(Vec2f velocity) { m_Velocity = velocity; }
 
-void SolidRectangle::moveObject(float dt) {
+void RectangleObstacle::moveObject(float dt) {
     m_Velocity += (m_Force / m_Mass) * dt;
     m_AngularVelocity += (m_Torque / m_Inertia) * dt;
 
@@ -77,17 +76,17 @@ void SolidRectangle::moveObject(float dt) {
 }
 
 // Uses bounding box of the rectangle
-bool SolidRectangle::isInside(float x, float y) {
+bool RectangleObstacle::isInside(float x, float y) {
     std::array<float, 4> bb = getBoundingBox();
     return x >= bb[0] && x <= bb[1] && y >= bb[2] && y <= bb[3];
 }
 
-void SolidRectangle::alignPositionToGrid(int N) {
+void RectangleObstacle::alignPositionToGrid(int N) {
     m_Position[0] = std::round(m_Position[0] * N) / N;
     m_Position[1] = std::round(m_Position[1] * N) / N;
 }
 
-void SolidRectangle::draw() {
+void RectangleObstacle::draw() {
     glBegin(GL_QUADS);
     glColor4f(1.0f, 0.0f, 0.0f, 0.5f);
 
@@ -105,15 +104,15 @@ void SolidRectangle::draw() {
     glEnd();
 }
 
-Vec2f SolidRectangle::getWorldPosition(Vec2f relativePos) {
+Vec2f RectangleObstacle::getWorldPosition(Vec2f relativePos) {
     float cosRot = std::cos(m_Rotation);
     float sinRot = std::sin(m_Rotation);
-    Vec2f rotation (relativePos[0] * cosRot - relativePos[1] * sinRot,
-                        relativePos[0] * sinRot + relativePos[1] * cosRot);
+    Vec2f rotation(relativePos[0] * cosRot - relativePos[1] * sinRot,
+                   relativePos[0] * sinRot + relativePos[1] * cosRot);
     return rotation + m_Position;
 }
 
-std::array<float, 4> SolidRectangle::getBoundingBox() {
+std::array<float, 4> RectangleObstacle::getBoundingBox() {
     Vec2f botLeft = getWorldPosition(m_P1);
     Vec2f botRight = getWorldPosition(Vec2f(m_P2[0], m_P1[1]));
     Vec2f topLeft = getWorldPosition(Vec2f(m_P1[0], m_P2[1]));
@@ -126,7 +125,7 @@ std::array<float, 4> SolidRectangle::getBoundingBox() {
     return {minX, maxX, minY, maxY};
 }
 
-std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
+std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f &start, const Vec2f &end) const {
     return std::nullopt;
 
     if (norm(start - end) < 1e-6) {
@@ -157,7 +156,8 @@ std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, c
             }
             double t1 = (-size[i] / 2 - local_start[i]) / dir[i];
             double t2 = (size[i] / 2 - local_start[i]) / dir[i];
-            if (t1 > t2) std::swap(t1, t2);
+            if (t1 > t2)
+                std::swap(t1, t2);
 
             tmin = std::max(tmin, t1);
             tmax = std::min(tmax, t2);
@@ -170,8 +170,14 @@ std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, c
 
     Vec2f local_intersection = local_start + tmin * dir;
 
-    //TODO with rb: update conversion to world space coordinates
+    // TODO with rb: update conversion to world space coordinates
     Vec2f intersection = local_intersection + cg;
 
     return intersection;
 }
+
+Vec2f RectangleObstacle::worldSpaceToObjectSpace(const Vec2f &position) {
+    Vec2f delta = position - m_Position;
+    return Vec2f(std::cos(m_Rotation) * delta[0] + std::sin(m_Rotation) * delta[1],
+                 -std::sin(m_Rotation) * delta[0] + std::cos(m_Rotation) * delta[1]);
+};

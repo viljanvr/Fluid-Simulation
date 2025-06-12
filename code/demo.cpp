@@ -14,19 +14,17 @@
   =======================================================================
 */
 
+#include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
-#include <algorithm>
-#include "SolidCircle.h"
-#include "SolidRectangle.h"
+#include "RectangleObstacle.h"
 #include "gfx/vec2.h"
 #include "jet_colormap.h"
 #include "viridis_colormap.h"
-#include "SolidBoundary.h"
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include <GLUT/glut.h>
@@ -40,9 +38,11 @@
 
 /* external definitions (from solver.c) */
 
-extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
+extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt,
+                      RectangleObstacle **obstacle_mask, const std::vector<RectangleObstacle *> &obstacle_list);
 extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt,
-                     float vorticity_conf_epsilon, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
+                     float vorticity_conf_epsilon, RectangleObstacle **obstacle_mask,
+                     const std::vector<RectangleObstacle *> &obstacle_list);
 
 /* global variables */
 
@@ -63,9 +63,9 @@ static int omx, omy, mx, my; // Pixel-coordinate
 
 static float (*colormap)[3] = jet_colormap;
 
-static Object **obstacle_mask;
-static std::vector<Object *> obstacles;
-static Object *interacting_obstacle;
+static RectangleObstacle **obstacle_mask;
+static std::vector<RectangleObstacle *> obstacles;
+static RectangleObstacle *interacting_obstacle;
 
 /*
   ----------------------------------------------------------------------
@@ -106,11 +106,11 @@ static void clear_data(void) {
     }
     obstacles.clear();
 
-    //obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
-    // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
-    //obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
-    obstacles.push_back(new SolidRectangle(N, Vec2f(0.5f, 0.5f), 0.5f, 0.10f, 1.0f));
-    //obstacles.push_back(new SolidBoundary(N));
+    // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
+    //  obstacles.push_back(new RectangleObstacle(N, 2, 2, 8, 8));
+    // obstacles.push_back(new RectangleObstacle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.5f), 0.5f, 0.10f, 1.0f));
+    // obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
@@ -125,7 +125,7 @@ static int allocate_data(void) {
     v_prev = (float *) malloc(size * sizeof(float));
     dens = (float *) malloc(size * sizeof(float));
     dens_prev = (float *) malloc(size * sizeof(float));
-    obstacle_mask = (Object **) malloc(size * sizeof(Object *));
+    obstacle_mask = (RectangleObstacle **) malloc(size * sizeof(RectangleObstacle *));
 
     if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev || !obstacle_mask) {
         fprintf(stderr, "cannot allocate data\n");
@@ -307,7 +307,7 @@ static void set_obstacle_mask() {
     for (int i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
-    //print_obstacle_mask();
+    // print_obstacle_mask();
 }
 
 static void handle_interaction() {
