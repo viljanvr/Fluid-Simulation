@@ -119,19 +119,12 @@ std::array<float, 4> SolidRectangle::getBoundingBox() {
 }
 
 std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
-    return std::nullopt;
-
     if (norm(start - end) < 1e-6) {
         return std::nullopt;
     }
 
-    // TODO with rb: remove redundant computation of cg and local coordinates of widht / height
-    Vec2f cg = (m_P1 + m_P2) / 2.0;
-    Vec2f size = m_P2 - m_P1;
-
-    // TODO with rb: update conversion start and end to local coordinates
-    Vec2f local_start = start - cg;
-    Vec2f local_end = end - cg;
+    Vec2f local_start = worldSpaceToObjectSpace(start);
+    Vec2f local_end = worldSpaceToObjectSpace(end);
     Vec2f dir = local_end - local_start;
 
     double tmin = 0.0;
@@ -140,15 +133,15 @@ std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, c
     for (int i = 0; i < 2; i++) {
         // Parallel to slab
         if (std::abs(dir[i]) < 1e-8) {
-            if (local_start[i] < -size[i] / 2 || local_start[i] > size[i] / 2) {
+            if (local_start[i] < m_P1[i] || local_start[i] > m_P2[i]) {
                 return std::nullopt;
             }
         } else {
             if (std::abs(dir[i]) < 1e-6) {
                 continue;
             }
-            double t1 = (-size[i] / 2 - local_start[i]) / dir[i];
-            double t2 = (size[i] / 2 - local_start[i]) / dir[i];
+            double t1 = (m_P1[i] - local_start[i]) / dir[i];
+            double t2 = (m_P2[i] - local_start[i]) / dir[i];
             if (t1 > t2) std::swap(t1, t2);
 
             tmin = std::max(tmin, t1);
@@ -162,8 +155,7 @@ std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, c
 
     Vec2f local_intersection = local_start + tmin * dir;
 
-    //TODO with rb: update conversion to world space coordinates
-    Vec2f intersection = local_intersection + cg;
+    Vec2f intersection = objectSpaceToWorldSpace(local_intersection);
 
     return intersection;
 }

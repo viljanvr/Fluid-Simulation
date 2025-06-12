@@ -111,7 +111,7 @@ static void clear_data(void) {
     // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
     //obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
     obstacles.push_back(new SolidRectangle(N, Vec2f(0.5f, 0.5f), 0.5f, 0.10f, 1.0f));
-    //obstacles.push_back(new SolidBoundary(N));
+    obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
