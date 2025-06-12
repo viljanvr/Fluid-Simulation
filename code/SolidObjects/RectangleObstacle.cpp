@@ -104,15 +104,7 @@ void RectangleObstacle::draw() {
     glEnd();
 }
 
-Vec2f RectangleObstacle::getWorldPosition(Vec2f relativePos) {
-    float cosRot = std::cos(m_Rotation);
-    float sinRot = std::sin(m_Rotation);
-    Vec2f rotation(relativePos[0] * cosRot - relativePos[1] * sinRot,
-                   relativePos[0] * sinRot + relativePos[1] * cosRot);
-    return rotation + m_Position;
-}
-
-std::array<float, 4> SolidRectangle::getBoundingBox() {
+std::array<float, 4> RectangleObstacle::getBoundingBox() {
     Vec2f botLeft = objectSpaceToWorldSpace(m_P1);
     Vec2f botRight = objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1]));
     Vec2f topLeft = objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1]));
@@ -167,8 +159,15 @@ std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f& start
     return intersection;
 }
 
-Vec2f RectangleObstacle::worldSpaceToObjectSpace(const Vec2f &position) {
+Vec2f RectangleObstacle::worldSpaceToObjectSpace(const Vec2f& position) const {
     Vec2f delta = position - m_Position;
     return Vec2f(std::cos(m_Rotation) * delta[0] + std::sin(m_Rotation) * delta[1],
-                 -std::sin(m_Rotation) * delta[0] + std::cos(m_Rotation) * delta[1]);
+            -std::sin(m_Rotation) * delta[0] + std::cos(m_Rotation) * delta[1]);
 };
+Vec2f RectangleObstacle::objectSpaceToWorldSpace(const Vec2f& position) const {
+    float cosRot = std::cos(m_Rotation);
+    float sinRot = std::sin(m_Rotation);
+    Vec2f rotation (position[0] * cosRot - position[1] * sinRot,
+                        position[0] * sinRot + position[1] * cosRot);
+    return rotation + m_Position;
+}

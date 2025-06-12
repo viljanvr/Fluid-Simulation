@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <optional>
 #include <gfx/vec2.h>
 
 class RectangleObstacle {
@@ -9,7 +10,6 @@ public:
     RectangleObstacle(int N, Vec2f position, float width, float height, float mass);
     Vec2f getVelocityFromPosition(float x, float y);
     Vec2f getCGVelocity();
-    Vec2f getWorldPosition(Vec2f relativePosition);
     std::array<float, 4> getBoundingBox();
     void setVelocity(Vec2f velocity);
     void moveObject(float dt);
@@ -19,7 +19,8 @@ public:
     bool isInside(float x, float y);
     void addForceAtPosition(Vec2f force, Vec2f position);
     std::optional<Vec2f> get_line_intersection(const Vec2f &start, const Vec2f &end) const;
-    Vec2f worldSpaceToObjectSpace(const Vec2f &position);
+    Vec2f worldSpaceToObjectSpace(const Vec2f &position) const;
+    Vec2f objectSpaceToWorldSpace(const Vec2f &position) const;
 
     Vec2f m_Velocity = Vec2f(0.0, 0.0);
 
