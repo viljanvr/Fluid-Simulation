@@ -118,6 +118,8 @@ std::array<float, 4> SolidRectangle::getBoundingBox() {
 }
 
 std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
+    return std::nullopt;
+
     if (norm(start - end) < 1e-6) {
         return std::nullopt;
     }
