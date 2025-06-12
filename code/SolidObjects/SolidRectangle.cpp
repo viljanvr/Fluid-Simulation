@@ -22,8 +22,8 @@ SolidRectangle::SolidRectangle(int N, Vec2f position, float width, float height,
 }
 
 // x, y, w, h in grid cells
-SolidRectangle::SolidRectangle(int N, int x, int y, int w, int h, float mass) :
-    Object(Vec2f((float) x / N, (float) y / N), Vec2f(0.0,0.0), mass),
+SolidRectangle::SolidRectangle(int N, int i, int j, int w, int h, float mass) :
+    Object(Vec2f((float) i / N, (float) j / N), Vec2f(0.0,0.0), mass),
         m_P1(Vec2f(-0.5 * (float) w / N, -0.5 * (float) h / N)),
         m_P2(Vec2f(0.5 * (float) w / N, 0.5 * (float) h / N)) {}
 
@@ -115,4 +115,49 @@ std::array<float, 4> SolidRectangle::getBoundingBox() {
     float maxY = std::max({botLeft[1], botRight[1], topLeft[1], topRight[1]});
 
     return {minX, maxX, minY, maxY};
+}
+
+std::optional<Vec2f> SolidRectangle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
+    if (norm(start - end) < 1e-6) {
+        return std::nullopt;
+    }
+
+    // TODO with rb: remove redundant computation of cg and local coordinates of widht / height
+    Vec2f cg = (m_P1 + m_P2) / 2.0;
+    Vec2f size = m_P2 - m_P1;
+
+    // TODO with rb: update conversion start and end to local coordinates
+    Vec2f local_start = start - cg;
+    Vec2f local_end = end - cg;
+    Vec2f dir = local_end - local_start;
+
+    double tmin = 0.0;
+    double tmax = 1.0;
+    // Iterate over x and y
+    for (int i = 0; i < 2; i++) {
+        // Parallel to slab
+        if (std::abs(dir[i]) < 1e-8) {
+            if (local_start[i] < -size[i] / 2 || local_start[i] > size[i] / 2) {
+                return std::nullopt;
+            }
+        } else {
+            double t1 = (-size[i] / 2 - local_start[i]) / dir[i];
+            double t2 = (size[i] / 2 - local_start[i]) / dir[i];
+            if (t1 > t2) std::swap(t1, t2);
+
+            tmin = std::max(tmin, t1);
+            tmax = std::min(tmax, t2);
+
+            if (tmin > tmax) {
+                return std::nullopt;
+            }
+        }
+    }
+
+    Vec2f local_intersection = local_start + tmin * dir;
+
+    //TODO with rb: update conversion to world space coordinates
+    Vec2f intersection = local_intersection + cg;
+
+    return intersection;
 }

@@ -13,18 +13,20 @@
 
   =======================================================================
 */
-#include <algorithm>
+
 #include <cctype>
 #include <cmath>
 #include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
+#include <algorithm>
 #include "SolidCircle.h"
 #include "SolidRectangle.h"
 #include "gfx/vec2.h"
 #include "jet_colormap.h"
 #include "viridis_colormap.h"
+#include "SolidBoundary.h"
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include <GLUT/glut.h>
@@ -38,8 +40,8 @@
 
 /* external definitions (from solver.c) */
 
-extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask);
+extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
 
 /* global variables */
 
@@ -101,8 +103,11 @@ static void clear_data(void) {
     }
     obstacles.clear();
 
-    // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.1, 1.0f));
-    obstacles.push_back(new SolidRectangle(N, Vec2f(0.50f, 0.50f), 0.30f, 0.20f, 1.0f));
+    //obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
+    // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
+    //obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
+    obstacles.push_back(new SolidRectangle(N, Vec2f(0.10f, 0.40f), Vec2f(0.90f, 0.60)));
+    obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
@@ -299,7 +304,7 @@ static void set_obstacle_mask() {
     for (int i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
-    // print_obstacle_mask();
+    //print_obstacle_mask();
 }
 
 static void handle_interaction() {
@@ -311,8 +316,6 @@ static void handle_interaction() {
     float strength = 2.0f;
     Vec2f force = strength * Vec2f(delta_x, delta_y);
     interacting_obstacle->addForceAtPosition(force, Vec2f(mx, my));
-
-    //set_obstacle_mask();
 }
 
 static void begin_object_interaction() {
@@ -329,7 +332,6 @@ static void begin_object_interaction() {
 static void end_object_interaction() {
     if (!interacting_obstacle)
         return;
-    // interacting_obstacle->alignPositionToGrid(N);
 
     set_obstacle_mask();
     interacting_obstacle = nullptr;
@@ -383,10 +385,10 @@ static void mouse_func(int button, int state, int x, int y) {
 
     mouse_down[button] = state == GLUT_DOWN;
 
-    if ((button == GLUT_LEFT_BUTTON || button == GLUT_RIGHT_BUTTON) && state == GLUT_DOWN)
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN)
         begin_object_interaction();
 
-    else if ((button == GLUT_LEFT_BUTTON || button == GLUT_RIGHT_BUTTON) && state == GLUT_UP)
+    else if (button == GLUT_LEFT_BUTTON && state == GLUT_UP)
         end_object_interaction();
 }
 
@@ -408,8 +410,8 @@ static void idle_func(void) {
     handle_interaction();
     move_objects();
     set_obstacle_mask();
-    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask);
-    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask);
+    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask, obstacles);
+    dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask, obstacles);
 
     omx = mx;
     omy = my;

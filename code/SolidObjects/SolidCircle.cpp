@@ -80,3 +80,45 @@ void SolidCircle::draw() {
     }
     glEnd();
 }
+
+
+std::optional<Vec2f> SolidCircle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
+    // TODO: copied from chatgpt. still need to check if it is correct.
+    if (norm(start - end) < 1e-6) {
+        return std::nullopt;
+    }
+
+    Vec2f d = end - start;
+    Vec2f f = start - m_Position;
+
+    float A = d * d;
+    float B = 2 * (f * d);
+    float C = (f * f) - m_Radius * m_Radius;
+
+    float discriminant = B * B - 4 * A * C;
+
+    if (discriminant < 0) {
+        return std::nullopt;  // No intersection
+    }
+
+    discriminant = std::sqrt(discriminant);
+
+    float t1 = (-B - discriminant) / (2 * A);
+    float t2 = (-B + discriminant) / (2 * A);
+
+    float t = 1.0f;
+
+    if (t1 >= 0 && t1 <= 1) {
+        t = std::min(t, t1);
+    }
+    if (t2 >= 0 && t2 <= 1) {
+        t = std::min(t, t2);
+    }
+
+    if (t >= 0 && t <= 1) {
+        std::cout << "intersection with circle" << std::endl;
+        return start + d * t;
+    }
+
+    return std::nullopt;
+}

@@ -1,5 +1,6 @@
 #pragma once
 #include <gfx/vec2.h>
+#include <optional>
 
 class Object {
 public:
@@ -13,6 +14,7 @@ public:
     virtual void addToObstacleMask(int N, Object **obstacle_mask) = 0;
     virtual void draw() = 0;
     virtual bool isInside(float x, float y) = 0;
+    virtual std::optional<Vec2f> get_line_intersection(const Vec2f& start, const Vec2f& end) const = 0;
     virtual void addForceAtPosition(Vec2f force, Vec2f position) = 0;
 
 protected:

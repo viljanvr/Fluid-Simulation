@@ -18,6 +18,9 @@ public:
     void draw() override;
     bool isInside(float x, float y) override;
     void addForceAtPosition(Vec2f force, Vec2f position) override;
+    std::optional<Vec2f> get_line_intersection(const Vec2f& start, const Vec2f& end) const override;
+
+    Vec2f m_Velocity;
 
 private:
     float m_Radius;
