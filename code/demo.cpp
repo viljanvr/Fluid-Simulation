@@ -315,7 +315,7 @@ static void handle_interaction() {
     float delta_y = (omy - my) / (float) win_y;
     float strength = 2.0f;
     Vec2f force = strength * Vec2f(delta_x, delta_y);
-    interacting_obstacle->addForceAtPosition(force, Vec2f(mx / (float) win_x, my / (float) win_x));
+    interacting_obstacle->addForceAtPosition(force, Vec2f(mx / (float) win_x, (win_y - my) / (float) win_y));
 }
 
 static void begin_object_interaction() {
