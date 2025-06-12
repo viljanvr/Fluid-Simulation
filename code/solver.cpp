@@ -164,6 +164,8 @@ void project(int N, float *u, float *v, float *p, float *div, Object **obstacle_
 
 // Update u and v inplace. curl is a buffer used in the function.
 void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float epsilon, float dt) {
+    if (!epsilon)
+        return;
     int i, j;
 
     FOR_EACH_CELL
@@ -195,12 +197,13 @@ void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float
     advect(N, 0, x, x0, u, v, dt, obstacle_mask, obstacle_list);
 }
 
-void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list) {
+void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, float vorticity_conf_epsilon,
+              Object **obstacle_mask, const std::vector<Object *> &obstacle_list) {
     // vel: u,v - source forces u0, v0
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
     // vel: u,v - buffers u0, v0
-    add_vorticity_conf_forces(N, u, v, u0, 160, dt);
+    add_vorticity_conf_forces(N, u, v, u0, vorticity_conf_epsilon, dt);
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
