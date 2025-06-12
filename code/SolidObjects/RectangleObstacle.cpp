@@ -88,13 +88,13 @@ void RectangleObstacle::alignPositionToGrid(int N) {
 
 void RectangleObstacle::draw() {
     glBegin(GL_QUADS);
-    glColor4f(1.0f, 0.0f, 0.0f, 0.5f);
+    glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
 
     // Calculate corner positions including rotation
-    Vec2f botLeft = getWorldPosition(m_P1);
-    Vec2f botRight = getWorldPosition(Vec2f(m_P2[0], m_P1[1]));
-    Vec2f topLeft = getWorldPosition(Vec2f(m_P1[0], m_P2[1]));
-    Vec2f topRight = getWorldPosition(m_P2);
+    Vec2f botLeft = objectSpaceToWorldSpace(m_P1);
+    Vec2f botRight = objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1]));
+    Vec2f topLeft = objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1]));
+    Vec2f topRight = objectSpaceToWorldSpace(m_P2);
 
     // Render world positions of the corners
     glVertex2f(botLeft[0], botLeft[1]);
@@ -112,11 +112,11 @@ Vec2f RectangleObstacle::getWorldPosition(Vec2f relativePos) {
     return rotation + m_Position;
 }
 
-std::array<float, 4> RectangleObstacle::getBoundingBox() {
-    Vec2f botLeft = getWorldPosition(m_P1);
-    Vec2f botRight = getWorldPosition(Vec2f(m_P2[0], m_P1[1]));
-    Vec2f topLeft = getWorldPosition(Vec2f(m_P1[0], m_P2[1]));
-    Vec2f topRight = getWorldPosition(m_P2);
+std::array<float, 4> SolidRectangle::getBoundingBox() {
+    Vec2f botLeft = objectSpaceToWorldSpace(m_P1);
+    Vec2f botRight = objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1]));
+    Vec2f topLeft = objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1]));
+    Vec2f topRight = objectSpaceToWorldSpace(m_P2);
     float minX = std::min({botLeft[0], botRight[0], topLeft[0], topRight[0]});
     float maxX = std::max({botLeft[0], botRight[0], topLeft[0], topRight[0]});
     float minY = std::min({botLeft[1], botRight[1], topLeft[1], topRight[1]});
@@ -125,20 +125,13 @@ std::array<float, 4> RectangleObstacle::getBoundingBox() {
     return {minX, maxX, minY, maxY};
 }
 
-std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f &start, const Vec2f &end) const {
-    return std::nullopt;
-
+std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
     if (norm(start - end) < 1e-6) {
         return std::nullopt;
     }
 
-    // TODO with rb: remove redundant computation of cg and local coordinates of widht / height
-    Vec2f cg = (m_P1 + m_P2) / 2.0;
-    Vec2f size = m_P2 - m_P1;
-
-    // TODO with rb: update conversion start and end to local coordinates
-    Vec2f local_start = start - cg;
-    Vec2f local_end = end - cg;
+    Vec2f local_start = worldSpaceToObjectSpace(start);
+    Vec2f local_end = worldSpaceToObjectSpace(end);
     Vec2f dir = local_end - local_start;
 
     double tmin = 0.0;
@@ -147,17 +140,16 @@ std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f &start
     for (int i = 0; i < 2; i++) {
         // Parallel to slab
         if (std::abs(dir[i]) < 1e-8) {
-            if (local_start[i] < -size[i] / 2 || local_start[i] > size[i] / 2) {
+            if (local_start[i] < m_P1[i] || local_start[i] > m_P2[i]) {
                 return std::nullopt;
             }
         } else {
             if (std::abs(dir[i]) < 1e-6) {
                 continue;
             }
-            double t1 = (-size[i] / 2 - local_start[i]) / dir[i];
-            double t2 = (size[i] / 2 - local_start[i]) / dir[i];
-            if (t1 > t2)
-                std::swap(t1, t2);
+            double t1 = (m_P1[i] - local_start[i]) / dir[i];
+            double t2 = (m_P2[i] - local_start[i]) / dir[i];
+            if (t1 > t2) std::swap(t1, t2);
 
             tmin = std::max(tmin, t1);
             tmax = std::min(tmax, t2);
@@ -170,8 +162,7 @@ std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f &start
 
     Vec2f local_intersection = local_start + tmin * dir;
 
-    // TODO with rb: update conversion to world space coordinates
-    Vec2f intersection = local_intersection + cg;
+    Vec2f intersection = objectSpaceToWorldSpace(local_intersection);
 
     return intersection;
 }
