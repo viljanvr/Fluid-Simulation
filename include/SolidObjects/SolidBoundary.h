@@ -13,7 +13,7 @@ public:
     void draw() override;
     bool isInside(float x, float y) override;
     std::optional<Vec2f> get_line_intersection(const Vec2f& start, const Vec2f& end) const override;
-
+    void addForceAtPosition(Vec2f force, Vec2f position) override;
 private:
     int m_N;
 };

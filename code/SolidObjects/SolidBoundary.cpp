@@ -2,7 +2,8 @@
 
 #define IX(i, j) ((i) + (N + 2) * (j))
 
-SolidBoundary::SolidBoundary(int N) : m_N{N} {}
+SolidBoundary::SolidBoundary(int N) : Object(Vec2f(0,0),
+    Vec2f(0,0), 0.0f),m_N{N} {}
 
 Vec2f SolidBoundary::getVelocityFromPosition(float x, float y) { return {0.0f, 0.0f}; }
 
@@ -27,6 +28,8 @@ void SolidBoundary::draw() {}
 
 bool SolidBoundary::isInside(float x, float y) { return false; }
 
+void SolidBoundary::addForceAtPosition(Vec2f force, Vec2f position) {};
+
 std::optional<Vec2f> SolidBoundary::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
     Vec2f dir = end - start;
     if (norm(end) < 1e-6) {
@@ -34,6 +37,9 @@ std::optional<Vec2f> SolidBoundary::get_line_intersection(const Vec2f& start, co
     }
     double t_min = 1.0;
     for (int i = 0; i < 2; i++) {
+        if (std::abs(dir[i]) < 1e-6) {
+            continue;
+        }
         double t1 = (0.5 - start[i] / dir[i]);
         double t2 = (m_N + 0.5 - start[i] / dir[i]);
         if (t1 >= 0) {

@@ -102,15 +102,15 @@ static void clear_data(void) {
     }
 
     for (auto o: obstacles) {
-        free(o);
+        delete o;
     }
     obstacles.clear();
 
     //obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
     // obstacles.push_back(new SolidRectangle(N, 2, 2, 8, 8));
     //obstacles.push_back(new SolidRectangle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
-    obstacles.push_back(new SolidRectangle(N, Vec2f(0.10f, 0.40f), Vec2f(0.90f, 0.60)));
-    obstacles.push_back(new SolidBoundary(N));
+    obstacles.push_back(new SolidRectangle(N, Vec2f(0.5f, 0.5f), 0.5f, 0.10f, 1.0f));
+    //obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
     }
@@ -310,20 +310,15 @@ static void set_obstacle_mask() {
     //print_obstacle_mask();
 }
 
-static void update_interactable_object() {
+static void handle_interaction() {
     if (!interacting_obstacle)
         return;
 
     float delta_x = (mx - omx) / (float) win_x;
     float delta_y = (omy - my) / (float) win_y;
-    Vec2f target_vel = Vec2f(delta_x / dt, delta_y / dt);
-    Vec2f previous_vel = interacting_obstacle->getCGVelocity();
-    float smoothing = 0.8f;
-
-    interacting_obstacle->setVelocity(smoothing * previous_vel + (1.0 - smoothing) * target_vel);
-    interacting_obstacle->moveObject(dt);
-
-    set_obstacle_mask();
+    float strength = 2.0f;
+    Vec2f force = strength * Vec2f(delta_x, delta_y);
+    interacting_obstacle->addForceAtPosition(force, Vec2f(mx / (float) win_x, (win_y - my) / (float) win_y));
 }
 
 static void begin_object_interaction() {
@@ -340,12 +335,15 @@ static void begin_object_interaction() {
 static void end_object_interaction() {
     if (!interacting_obstacle)
         return;
-    interacting_obstacle->alignPositionToGrid(N);
 
     set_obstacle_mask();
-
-    interacting_obstacle->setVelocity(Vec2f(0.0, 0.0));
     interacting_obstacle = nullptr;
+}
+
+static void move_objects() {
+    for (auto o: obstacles) {
+        o->moveObject(dt);
+    }
 }
 
 /*
@@ -418,7 +416,9 @@ static void reshape_func(int width, int height) {
 
 static void idle_func(void) {
     add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
-    update_interactable_object();
+    handle_interaction();
+    move_objects();
+    set_obstacle_mask();
     vel_step(N, u, v, u_prev, v_prev, visc, dt, vorticity_conf_enabled ? vorticity_conf_epsilon : 0.0, obstacle_mask,
              obstacles);
     dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask, obstacles);
