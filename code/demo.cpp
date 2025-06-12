@@ -19,6 +19,8 @@
 #include <cstddef>
 #include <stdio.h>
 #include <stdlib.h>
+#include <vector>
+#include <algorithm>
 #include "SolidCircle.h"
 #include "SolidRectangle.h"
 #include "gfx/vec2.h"

@@ -1,5 +1,6 @@
 #include <math.h>
 #include <stdlib.h>
+#include <vector>
 #include "Object.h"
 #include "gfx/vec2.h"
 
