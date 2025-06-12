@@ -41,7 +41,8 @@
 /* external definitions (from solver.c) */
 
 extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt,
+                     float vorticity_conf_epsilon, Object **obstacle_mask, const std::vector<Object *> &obstacle_list);
 
 /* global variables */
 
@@ -49,6 +50,8 @@ static int N;
 static float dt, diff, visc;
 static float force, source;
 static int dvel;
+static float vorticity_conf_epsilon = 160;
+static bool vorticity_conf_enabled = true;
 
 static float *u, *v, *u_prev, *v_prev;
 static float *dens, *dens_prev;
@@ -364,6 +367,12 @@ static void key_func(unsigned char key, int x, int y) {
             exit(0);
             break;
 
+        case 'r':
+        case 'R':
+            vorticity_conf_enabled = !vorticity_conf_enabled;
+            std::cout << "Vorticity confinement is " << (vorticity_conf_enabled ? "enabled." : "disabled.")
+                      << std::endl;
+            break;
         case 'v':
         case 'V':
             dvel = !dvel;
@@ -410,7 +419,8 @@ static void reshape_func(int width, int height) {
 static void idle_func(void) {
     add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
     update_interactable_object();
-    vel_step(N, u, v, u_prev, v_prev, visc, dt, obstacle_mask, obstacles);
+    vel_step(N, u, v, u_prev, v_prev, visc, dt, vorticity_conf_enabled ? vorticity_conf_epsilon : 0.0, obstacle_mask,
+             obstacles);
     dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask, obstacles);
 
     omx = mx;
@@ -510,6 +520,7 @@ int main(int argc, char **argv) {
     printf("\t Toggle density/velocity display with the 'v' key\n");
     printf("\t Clear the simulation by pressing the 'c' key\n");
     printf("\t Quit by pressing the 'q' key\n");
+    printf("\t Toggle vorticity confinement with the 'r' key\n");
 
     dvel = 0;
 
