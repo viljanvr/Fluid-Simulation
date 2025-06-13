@@ -13,8 +13,8 @@
 #define IX(i, j) ((i) + (N + 2) * (j))
 
 
-RectangleObstacle::RectangleObstacle(int N, Vec2f position, float width, float height, float mass) :
-    m_Position(position), m_Mass(mass), m_P1(Vec2f(-0.5 * width, -0.5 * height)),
+RectangleObstacle::RectangleObstacle(int N, Vec2f position, float width, float height, float density) :
+    m_Position(position), m_Mass(density * width * height), m_P1(Vec2f(-0.5 * width, -0.5 * height)),
     m_P2(Vec2f(0.5 * width, 0.5 * height)) {
 
     m_Inertia = m_Mass * (4 * m_P2[0] * m_P2[0] + 4 * m_P2[1] * m_P2[1]) / 12;
@@ -22,8 +22,8 @@ RectangleObstacle::RectangleObstacle(int N, Vec2f position, float width, float h
 }
 
 // x, y, w, h in grid cells
-RectangleObstacle::RectangleObstacle(int N, int i, int j, int w, int h, float mass) :
-    RectangleObstacle(N, Vec2f(((float) i + 0.5f) / N, ((float) j + 0.5f) / N), (float) w / N, (float) h / N, mass) {}
+RectangleObstacle::RectangleObstacle(int N, int i, int j, int w, int h, float density) :
+    RectangleObstacle(N, Vec2f(((float) i + 0.5f) / N, ((float) j + 0.5f) / N), (float) w / N, (float) h / N, density) {}
 
 Vec2f RectangleObstacle::getVelocityFromPosition(float x, float y) {
     Vec2f r = Vec2f(x, y) - m_Position;

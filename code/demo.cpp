@@ -110,7 +110,8 @@ static void clear_data(void) {
     // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
     //  obstacles.push_back(new RectangleObstacle(N, 2, 2, 8, 8));
     // obstacles.push_back(new RectangleObstacle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.5f), 0.5f, 0.10f, 1.0f));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.5f), 0.5f, 0.05f, 1.0f));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.1f), 0.1f, 0.10f, 1.0f));
     // obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
@@ -331,8 +332,8 @@ static void handle_interaction() {
     Vec2f object_velocity = interacting_obstacle->getVelocityFromPosition(object_world_pos[0], object_world_pos[1]);
     Vec2f mouse_world_pos = Vec2f (mx / float(win_x), (win_y - my) / float(win_y));
 
-    float spring_constant = 0.1;
-    float damping = 0.1;
+    float spring_constant = 0.05;
+    float damping = 0.02;
     Vec2f delta = (mouse_world_pos - object_world_pos);
     Vec2f force = spring_constant * delta - damping * object_velocity;
 

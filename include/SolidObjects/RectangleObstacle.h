@@ -6,8 +6,8 @@
 
 class RectangleObstacle {
 public:
-    RectangleObstacle(int N, int x, int y, int w, int h, float mass);
-    RectangleObstacle(int N, Vec2f position, float width, float height, float mass);
+    RectangleObstacle(int N, int x, int y, int w, int h, float density);
+    RectangleObstacle(int N, Vec2f position, float width, float height, float density);
     Vec2f getVelocityFromPosition(float x, float y);
     Vec2f getCGVelocity();
     std::array<float, 4> getBoundingBox();
