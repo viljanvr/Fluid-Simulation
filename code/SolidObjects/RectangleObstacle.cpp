@@ -45,9 +45,7 @@ void RectangleObstacle::addToObstacleMask(int N, RectangleObstacle **obstacle_ma
         for (int j = minJ; j < maxJ; j++) {
             float x = ((float) i + 0.5) / N;
             float y = ((float) j + 0.5) / N;
-            Vec2f objectSpace = worldSpaceToObjectSpace(Vec2f(x, y));
-            if (objectSpace[0] >= m_P1[0] && objectSpace[1] >= m_P1[1] && objectSpace[0] <= m_P2[0] &&
-                objectSpace[1] <= m_P2[1]) {
+            if (isInside(x, y)) {
                 obstacle_mask[IX(i + 1, j + 1)] = this;
             }
         }
@@ -75,10 +73,10 @@ void RectangleObstacle::moveObject(float dt) {
     m_Torque = 0;
 }
 
-// Uses bounding box of the rectangle
 bool RectangleObstacle::isInside(float x, float y) {
-    std::array<float, 4> bb = getBoundingBox();
-    return x >= bb[0] && x <= bb[1] && y >= bb[2] && y <= bb[3];
+    Vec2f objectSpace = worldSpaceToObjectSpace(Vec2f(x, y));
+    return objectSpace[0] >= m_P1[0] && objectSpace[1] >= m_P1[1] && objectSpace[0] <= m_P2[0] &&
+                objectSpace[1] <= m_P2[1];
 }
 
 void RectangleObstacle::alignPositionToGrid(int N) {
