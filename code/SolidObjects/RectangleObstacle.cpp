@@ -73,7 +73,7 @@ void RectangleObstacle::moveObject(float dt) {
     m_Torque = 0;
 }
 
-bool RectangleObstacle::isInside(float x, float y) {
+bool RectangleObstacle::isInside(float x, float y) const {
     Vec2f objectSpace = worldSpaceToObjectSpace(Vec2f(x, y));
     return objectSpace[0] >= m_P1[0] && objectSpace[1] >= m_P1[1] && objectSpace[0] <= m_P2[0] &&
                 objectSpace[1] <= m_P2[1];
@@ -161,11 +161,84 @@ Vec2f RectangleObstacle::worldSpaceToObjectSpace(const Vec2f& position) const {
     Vec2f delta = position - m_Position;
     return Vec2f(std::cos(m_Rotation) * delta[0] + std::sin(m_Rotation) * delta[1],
             -std::sin(m_Rotation) * delta[0] + std::cos(m_Rotation) * delta[1]);
-};
+}
+
 Vec2f RectangleObstacle::objectSpaceToWorldSpace(const Vec2f& position) const {
     float cosRot = std::cos(m_Rotation);
     float sinRot = std::sin(m_Rotation);
     Vec2f rotation (position[0] * cosRot - position[1] * sinRot,
                         position[0] * sinRot + position[1] * cosRot);
     return rotation + m_Position;
+}
+
+// Finds normal at edge of the two closest vertices
+Vec2f RectangleObstacle::getCollisionNormal(const Vec2f& position) const{
+    auto vertices = getWorldSpaceVertices();
+    std::vector<std::pair<float, int>> distIdxPairs;
+
+    for (int i = 0; i < vertices.size(); ++i) {
+        distIdxPairs.emplace_back(norm(position - vertices[i]), i);
+    }
+
+    std::sort(distIdxPairs.begin(), distIdxPairs.end());
+
+    int closestIdx = distIdxPairs[0].second;
+    int secondClosestIdx = distIdxPairs[1].second;
+    Vec2f collisionEdge = vertices[closestIdx] - vertices[secondClosestIdx];
+    Vec2f collisionNormal (-collisionEdge[1], collisionEdge[0]);    // Perpendicular
+    std::cout << "collisionNormal: " << collisionNormal / norm(collisionNormal) << ", " << closestIdx << ", " << secondClosestIdx << std::endl;
+    return collisionNormal / norm(collisionNormal);
+}
+
+
+std::optional<Vec2f> RectangleObstacle::isCollidingWith(const RectangleObstacle& other) const {
+    std::array<Vec2f, 4> vertices = getWorldSpaceVertices();
+    for (const auto& v : vertices) {
+        if (other.isInside(v[0], v[1])) {
+            return v;
+        }
+    }
+    return std::nullopt;
+}
+
+// Modifies object positions to approximated collision positions
+std::pair<Vec2f, bool> RectangleObstacle::bisection(float dt, RectangleObstacle& o1, RectangleObstacle& o2) {
+    float eps = 0.01; // maybe set higher later
+    float t0 = 0;
+    float t = dt;
+    Vec2f o1Start = o1.m_Position;
+    Vec2f o2Start = o2.m_Position;
+    Vec2f lastCollidingPos1 = o1.m_Position;
+    Vec2f lastCollidingPos2 = o2.m_Position;
+    bool isFromObject1 = false;
+
+    while (t - t0 > eps) {
+        float tMid = 0.5 * (t0 + t);
+        o1.m_Position = o1Start - tMid * o1.m_Velocity;
+        o2.m_Position = o2Start - tMid * o2.m_Velocity;
+        if (o1.isCollidingWith(o2) || o2.isCollidingWith(o1)) {
+            if (o1.isCollidingWith(o2)) {
+                lastCollidingPos1 = o1.m_Position;
+                isFromObject1 = true;
+            } else {
+                lastCollidingPos2 = o2.m_Position;
+                isFromObject1 = false;
+            }
+            t = tMid;
+        } else {
+            t0 = tMid;
+        }
+    }
+
+    if (isFromObject1) return {lastCollidingPos1, isFromObject1};
+    return {lastCollidingPos2, isFromObject1};
+}
+
+std::array<Vec2f, 4> RectangleObstacle::getWorldSpaceVertices() const {
+    return {
+        objectSpaceToWorldSpace(m_P1), // bottom-left
+        objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1])), // bottom-right
+        objectSpaceToWorldSpace(m_P2), // top-right
+        objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1]))  // top-left
+    };
 }

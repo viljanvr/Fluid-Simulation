@@ -362,6 +362,30 @@ static void end_object_interaction() {
     interacting_obstacle = nullptr;
 }
 
+// Assumes only vertex-edge collisions
+static void handle_collision() {
+    for (size_t i = 0; i < obstacles.size(); ++i) {
+        for (size_t j = i + 1; j < obstacles.size(); ++j) {
+            if (obstacles[i]->isCollidingWith(*obstacles[j]) || obstacles[j]->isCollidingWith(*obstacles[i])) { // o1 has vertex
+                // Move back, ensures one vertex is inside other
+                auto [collisionVertex, isFromObject1] = RectangleObstacle::bisection(dt, *obstacles[i], *obstacles[j]); // Point of collision is now in o1
+                // Find vertex and edge normal
+                Vec2f collisionNormal;
+                if (isFromObject1) {
+                    collisionNormal = obstacles[j]->getCollisionNormal(collisionVertex);
+                } else {
+                    collisionNormal = obstacles[i]->getCollisionNormal(collisionVertex);
+                }
+
+                // impulse function
+                // Vec2f v1 = obstacles[i]->getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+                // Vec2f v2 = obstacles[j]->getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+
+            }
+        }
+    }
+}
+
 static void move_objects() {
     for (auto o: obstacles) {
         o->moveObject(dt);
@@ -438,6 +462,7 @@ static void reshape_func(int width, int height) {
 
 static void idle_func(void) {
     add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
+    handle_collision();
     handle_interaction();
     move_objects();
     set_obstacle_mask();
