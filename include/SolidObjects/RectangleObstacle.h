@@ -25,7 +25,9 @@ public:
     Vec2f getCollisionNormal(const Vec2f &position) const;
     // static std::optional<Vec2f> areColliding(const RectangleObstacle& o1, const RectangleObstacle& o2);
     std::optional<Vec2f> isCollidingWith(const RectangleObstacle &other) const;
+
     static std::pair<Vec2f, bool> bisection (float dt, RectangleObstacle& o1, RectangleObstacle& o2);
+    static void applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle& vertexObj, RectangleObstacle& faceObj);
 
     Vec2f m_Velocity = Vec2f(0.0, 0.0);
 

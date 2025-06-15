@@ -110,10 +110,10 @@ static void clear_data(void) {
     // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
     //  obstacles.push_back(new RectangleObstacle(N, 2, 2, 8, 8));
     // obstacles.push_back(new RectangleObstacle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.5f), 0.5f, 0.05f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.3f), 0.1f, 0.10f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.2f, 0.3f), 0.1f, 0.10f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.8f, 0.3f), 0.1f, 0.10f, 1.0f));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.3f), 0.5f, 0.2f, 1.0f));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.6f), 0.1f, 0.10f, 1.0f));
+    // obstacles.push_back(new RectangleObstacle(N, Vec2f(0.2f, 0.3f), 0.1f, 0.10f, 1.0f));
+    // obstacles.push_back(new RectangleObstacle(N, Vec2f(0.8f, 0.3f), 0.1f, 0.10f, 1.0f));
     // obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
@@ -362,29 +362,24 @@ static void end_object_interaction() {
     interacting_obstacle = nullptr;
 }
 
-// Assumes only vertex-edge collisions
+// Assumes only vertex-edge collisions, single point of contact
 static void handle_collision() {
     for (size_t i = 0; i < obstacles.size(); ++i) {
         for (size_t j = i + 1; j < obstacles.size(); ++j) {
-            if (obstacles[i]->isCollidingWith(*obstacles[j]) || obstacles[j]->isCollidingWith(*obstacles[i])) { // o1 has vertex
-                // Move back, ensures one vertex is inside other
-                auto [collisionVertex, isFromObject1] = RectangleObstacle::bisection(dt, *obstacles[i], *obstacles[j]); // Point of collision is now in o1
-                // Find vertex and edge normal
-                Vec2f collisionNormal;
+            if (obstacles[i]->isCollidingWith(*obstacles[j]) || obstacles[j]->isCollidingWith(*obstacles[i])) {
+                // Backtrack
+                auto [collisionVertex, isFromObject1] = RectangleObstacle::bisection(dt, *obstacles[i], *obstacles[j]);
+
                 if (isFromObject1) {
-                    collisionNormal = obstacles[j]->getCollisionNormal(collisionVertex);
+                    RectangleObstacle::applyCollisionImpulse(collisionVertex, *obstacles[i], *obstacles[j]);
                 } else {
-                    collisionNormal = obstacles[i]->getCollisionNormal(collisionVertex);
+                    RectangleObstacle::applyCollisionImpulse(collisionVertex, *obstacles[j], *obstacles[i]);
                 }
-
-                // impulse function
-                // Vec2f v1 = obstacles[i]->getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
-                // Vec2f v2 = obstacles[j]->getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
-
             }
         }
     }
 }
+
 
 static void move_objects() {
     for (auto o: obstacles) {

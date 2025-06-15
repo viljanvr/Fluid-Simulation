@@ -171,23 +171,69 @@ Vec2f RectangleObstacle::objectSpaceToWorldSpace(const Vec2f& position) const {
     return rotation + m_Position;
 }
 
-// Finds normal at edge of the two closest vertices
+Vec2f closestPointOnEdge(const Vec2f& A, const Vec2f& B, const Vec2f& position) {
+    Vec2f AB = B - A;
+    float t = ((position - A) * AB) / (AB * AB);
+    t = std::clamp(t, 0.0f, 1.0f);
+    return A + t * AB;
+}
+
+// Finds the closest edge, and computes the normal on it
 Vec2f RectangleObstacle::getCollisionNormal(const Vec2f& position) const{
     auto vertices = getWorldSpaceVertices();
-    std::vector<std::pair<float, int>> distIdxPairs;
+    float minDist = std::numeric_limits<float>::max();
+    Vec2f closestEdge;
 
-    for (int i = 0; i < vertices.size(); ++i) {
-        distIdxPairs.emplace_back(norm(position - vertices[i]), i);
+    for (int i = 0; i < 4; ++i) {
+        Vec2f A = vertices[i];
+        Vec2f B = vertices[(i + 1) % 4];
+
+        Vec2f closest = closestPointOnEdge(A, B, position);
+        float dist = norm(position - closest);
+
+        if (dist < minDist) {
+            minDist = dist;
+            closestEdge = B - A;
+        }
     }
-
-    std::sort(distIdxPairs.begin(), distIdxPairs.end());
-
-    int closestIdx = distIdxPairs[0].second;
-    int secondClosestIdx = distIdxPairs[1].second;
-    Vec2f collisionEdge = vertices[closestIdx] - vertices[secondClosestIdx];
-    Vec2f collisionNormal (-collisionEdge[1], collisionEdge[0]);    // Perpendicular
-    std::cout << "collisionNormal: " << collisionNormal / norm(collisionNormal) << ", " << closestIdx << ", " << secondClosestIdx << std::endl;
+    Vec2f collisionNormal (closestEdge[1], -closestEdge[0]);
+    // std::cout << "collisionNormal: " << collisionNormal / norm(collisionNormal) << std::endl;
     return collisionNormal / norm(collisionNormal);
+}
+
+void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj, RectangleObstacle &faceObj) {
+    float epsilon = 0.1;
+
+    // Get normal on faceObj
+    Vec2f collisionNormal = faceObj.getCollisionNormal(collisionVertex);
+
+    // sub-computations for j
+    Vec2f v1 = vertexObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+    Vec2f v2 = faceObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+    float vRelNeg = collisionNormal * (v1 - v2);
+
+    Vec2f r1 = collisionVertex - vertexObj.m_Position;
+    Vec2f r2 = collisionVertex - faceObj.m_Position;
+    float r1Cross = r1[0] * collisionNormal[1] - r1[1] * collisionNormal[0];
+    float r2Cross = r2[0] * collisionNormal[1] - r2[1] * collisionNormal[0];
+    float denom1 = (r1Cross * r1Cross) / vertexObj.m_Inertia;
+    float denom2 = (r2Cross * r2Cross) / faceObj.m_Inertia;
+
+    // Final j computation
+    float numerator = -(1 + epsilon) * vRelNeg;
+    float denominator = 1 / vertexObj.m_Mass + 1 / faceObj.m_Mass + denom1 + denom2;
+    float j = numerator / denominator;
+    Vec2f force = collisionNormal * j;
+
+    // std::cout << "force: " << force << std::endl;
+    // std::cout << "angular pre: " << vertexObj.m_AngularVelocity << std::endl;
+
+    // Add to velocity states
+    vertexObj.m_Velocity += force / vertexObj.m_Mass;
+    faceObj.m_Velocity -= force / faceObj.m_Mass;
+    vertexObj.m_AngularVelocity += (r1[0] * force[1] - r1[1] * force[0]) / vertexObj.m_Inertia;
+    faceObj.m_AngularVelocity -= (r2[0] * force[1] - r2[1] * force[0]) / faceObj.m_Inertia;
+    // std::cout << "angular post: " << vertexObj.m_AngularVelocity << std::endl;
 }
 
 
@@ -203,7 +249,7 @@ std::optional<Vec2f> RectangleObstacle::isCollidingWith(const RectangleObstacle&
 
 // Modifies object positions to approximated collision positions
 std::pair<Vec2f, bool> RectangleObstacle::bisection(float dt, RectangleObstacle& o1, RectangleObstacle& o2) {
-    float eps = 0.01; // maybe set higher later
+    float eps = 0.000001; // error we accept from collision time t
     float t0 = 0;
     float t = dt;
     Vec2f o1Start = o1.m_Position;
@@ -218,10 +264,10 @@ std::pair<Vec2f, bool> RectangleObstacle::bisection(float dt, RectangleObstacle&
         o2.m_Position = o2Start - tMid * o2.m_Velocity;
         if (o1.isCollidingWith(o2) || o2.isCollidingWith(o1)) {
             if (o1.isCollidingWith(o2)) {
-                lastCollidingPos1 = o1.m_Position;
+                lastCollidingPos1 = o1.isCollidingWith(o2).value();
                 isFromObject1 = true;
             } else {
-                lastCollidingPos2 = o2.m_Position;
+                lastCollidingPos2 = o2.isCollidingWith(o1).value();
                 isFromObject1 = false;
             }
             t = tMid;
