@@ -212,6 +212,11 @@ void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleOb
     Vec2f v2 = faceObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
     float vRelNeg = collisionNormal * (v1 - v2);
 
+    // If this is positive, the obstacles are moving away from each other and we don't want to apply forces.
+    if (vRelNeg > 0) {
+       return;
+    }
+
     Vec2f r1 = collisionVertex - vertexObj.m_Position;
     Vec2f r2 = collisionVertex - faceObj.m_Position;
     float r1Cross = r1[0] * collisionNormal[1] - r1[1] * collisionNormal[0];
