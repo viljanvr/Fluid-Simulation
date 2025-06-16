@@ -40,7 +40,9 @@
 
 extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt,
                       RectangleObstacle **obstacle_mask, const std::vector<RectangleObstacle *> &obstacle_list);
-extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt,
+extern void temp_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt,
+                      RectangleObstacle **obstacle_mask, const std::vector<RectangleObstacle *> &obstacle_list);
+extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp, float visc, float dt,
                      float vorticity_conf_epsilon, RectangleObstacle **obstacle_mask,
                      const std::vector<RectangleObstacle *> &obstacle_list);
 
@@ -52,9 +54,11 @@ static float force, source;
 static int dvel;
 static float vorticity_conf_epsilon = 160;
 static bool vorticity_conf_enabled = true;
+static bool temp_enabled = false;
 
 static float *u, *v, *u_prev, *v_prev;
 static float *dens, *dens_prev;
+static float *temp, *temp_prev;
 
 static int win_id;
 static int win_x, win_y; // Window with in pixels
@@ -89,6 +93,10 @@ static void free_data(void) {
         free(dens_prev);
     if (obstacle_mask)
         free(obstacle_mask);
+    if (temp)
+        free(temp);
+    if (temp_prev)
+        free(temp_prev);
     for (auto o: obstacles) {
         free(o);
     }
@@ -99,6 +107,7 @@ static void clear_data(void) {
 
     for (i = 0; i < size; i++) {
         u[i] = v[i] = u_prev[i] = v_prev[i] = dens[i] = dens_prev[i] = 0.0f;
+        temp[i] = temp_prev[i] = 0.0f;
         obstacle_mask[i] = nullptr;
     }
 
@@ -129,6 +138,8 @@ static int allocate_data(void) {
     v_prev = (float *) malloc(size * sizeof(float));
     dens = (float *) malloc(size * sizeof(float));
     dens_prev = (float *) malloc(size * sizeof(float));
+    temp = (float *) malloc(size * sizeof(float));
+    temp_prev = (float *) malloc(size * sizeof(float));
     obstacle_mask = (RectangleObstacle **) malloc(size * sizeof(RectangleObstacle *));
 
     if (!u || !v || !u_prev || !v_prev || !dens || !dens_prev || !obstacle_mask) {
@@ -214,9 +225,20 @@ static void draw_velocity(void) {
     glEnd();
 }
 
-static void draw_density(void) {
+static void color_from_dens_and_temp(float dens, float temp) {
+    float r = std::clamp((temp + 10.0f) / 110.0f, 0.0f, 1.0f);
+    //float g = std::clamp(1.0f - std::abs(temp - 50.0f) / 50.0f, 0.0f, 1.0f);
+    float g = 0.3;
+    float b = std::clamp(1.0f - temp / 110.0f, 0.0f, 1.0f);
+    r *= std::clamp(dens, 0.0f, 1.0f) * 0.7 + 0.3;
+    g *= std::clamp(dens, 0.0f, 1.0f) * 0.7 + 0.3;
+    b *= std::clamp(dens, 0.0f, 1.0f) * 0.7 + 0.3;
+    glColor3f(r, g, b);
+}
+
+static void draw_density_and_temp(void) {
     int i, j;
-    float x, y, h, d00, d01, d10, d11;
+    float x, y, h, d00, d01, d10, d11, t00, t01, t10, t11;
 
     h = 1.0f / N;
 
@@ -236,14 +258,18 @@ static void draw_density(void) {
             d01 = dens[IX(i, j + 1)];
             d10 = dens[IX(i + 1, j)];
             d11 = dens[IX(i + 1, j + 1)];
+            t00 = temp[IX(i, j)];
+            t01 = temp[IX(i, j + 1)];
+            t10 = temp[IX(i + 1, j)];
+            t11 = temp[IX(i + 1, j + 1)];
 
-            glColor3f(d00, d00, d00);
+            color_from_dens_and_temp(d00, t00);
             glVertex2f(x, y);
-            glColor3f(d10, d10, d10);
+            color_from_dens_and_temp(d10, t10);
             glVertex2f(x + h, y);
-            glColor3f(d11, d11, d11);
+            color_from_dens_and_temp(d11, t11);
             glVertex2f(x + h, y + h);
-            glColor3f(d01, d01, d01);
+            color_from_dens_and_temp(d01, t01);
             glVertex2f(x, y + h);
         }
     }
@@ -269,11 +295,11 @@ static void draw_interaction(void) {
   ----------------------------------------------------------------------
 */
 
-static void add_dens_and_vel_from_UI(float *d, float *u, float *v) {
+static void add_dens_and_vel_from_UI(float *d, float *u, float *v, float *temp) {
     int i, j, size = (N + 2) * (N + 2);
 
     for (i = 0; i < size; i++) {
-        u[i] = v[i] = d[i] = 0.0f;
+        u[i] = v[i] = d[i] = temp[i] = 0.0f;
     }
 
     if (!mouse_down[GLUT_LEFT_BUTTON] && !mouse_down[GLUT_RIGHT_BUTTON] || interacting_obstacle)
@@ -412,6 +438,16 @@ static void key_func(unsigned char key, int x, int y) {
             std::cout << "Vorticity confinement is " << (vorticity_conf_enabled ? "enabled." : "disabled.")
                       << std::endl;
             break;
+        case 't':
+        case 'T':
+            temp_enabled = !temp_enabled;
+            std::cout << "Temperature is " << (temp_enabled ? "enabled." : "disabled.") << std::endl;
+            if (!temp_enabled) {
+                for (int i = 0; i < (N + 2) * (N + 2); i++) {
+                    temp[i] = temp_prev[i] = 0.0f;
+                }
+            }
+            break;
         case 'v':
         case 'V':
             dvel = !dvel;
@@ -456,14 +492,17 @@ static void reshape_func(int width, int height) {
 }
 
 static void idle_func(void) {
-    add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev);
+    add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev, temp_prev);
     handle_collision();
     handle_interaction();
     move_objects();
     set_obstacle_mask();
-    vel_step(N, u, v, u_prev, v_prev, visc, dt, vorticity_conf_enabled ? vorticity_conf_epsilon : 0.0, obstacle_mask,
+    vel_step(N, u, v, u_prev, v_prev, temp, visc, dt, vorticity_conf_enabled ? vorticity_conf_epsilon : 0.0, obstacle_mask,
              obstacles);
     dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask, obstacles);
+    if (temp_enabled) {
+        temp_step(N, temp, temp_prev, u, v, 0.00001, dt, obstacle_mask, obstacles);
+    }
 
     omx = mx;
     omy = my;
@@ -478,7 +517,7 @@ static void display_func(void) {
     if (dvel)
         draw_velocity();
     else
-        draw_density();
+        draw_density_and_temp();
 
     draw_obstacles();
 

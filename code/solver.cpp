@@ -35,6 +35,13 @@ void add_source(int N, float *x, float *s, float dt) {
     }
 }
 
+void add_temp_forces(int N, float *v, float *temp, float dt) {
+    int i, size = (N + 2) * (N + 2);
+    for (i = 0; i < size; i++) {
+        v[i] += dt * temp[i] * 0.0001;
+    }
+}
+
 void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
     int i, j;
 
@@ -53,6 +60,16 @@ void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
 
     FOR_EACH_CELL_WITH_BOUNDARY;
     if (i > 0 && i < N + 1 && j > 0 && j < N + 1 && !obstacle_mask[IX(i, j)]) {
+        continue;
+    }
+
+    // special cases for temperature
+    if (b == 3 && (j == N + 1 || i == 0 || i == N + 1)) {
+        x[IX(i, j)] = 0.0;
+        continue;
+    }
+    if (b == 3 && j == 0 && (i % 16) == 8) {
+        x[IX(i, j)] = 500.0f;
         continue;
     }
 
@@ -240,13 +257,28 @@ void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float
     advect(N, 0, x, x0, u, v, dt, obstacle_mask, obstacle_list);
 }
 
-void vel_step(int N, float *u, float *v, float *u0, float *v0, float visc, float dt, float vorticity_conf_epsilon,
+void temp_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, RectangleObstacle **obstacle_mask,
+    const std::vector<RectangleObstacle *> &obstacle_list) {
+    add_source(N, x, x0, dt);
+    SWAP(x0, x);
+    diffuse(N, 3, x, x0, diff, dt, obstacle_mask);
+    SWAP(x0, x);
+    advect(N, 3, x, x0, u, v, dt, obstacle_mask, obstacle_list);
+}
+
+
+void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp,float visc, float dt, float vorticity_conf_epsilon,
               RectangleObstacle **obstacle_mask, const std::vector<RectangleObstacle *> &obstacle_list) {
     // vel: u,v - source forces u0, v0
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
     // vel: u,v - buffers u0, v0
+    add_temp_forces(N, v, temp, dt);
     add_vorticity_conf_forces(N, u, v, u0, vorticity_conf_epsilon, dt);
+    // vel: u,v - buffers u0, v0
+    project(N, u, v, u0, v0, obstacle_mask);
+    applyPressureForces(N, u0, obstacle_mask);
+    // vel: u,v - buffers u0(stores pressure), v0
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
     SWAP(v0, v);
