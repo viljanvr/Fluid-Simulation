@@ -16,8 +16,12 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cerrno>
 #include <cmath>
 #include <cstddef>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <vector>
@@ -43,8 +47,10 @@ extern void dens_step(int N, float *x, float *x0, float *u, float *v, float diff
 extern void temp_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt,
                       RectangleObstacle **obstacle_mask, const std::vector<RectangleObstacle *> &obstacle_list);
 extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp, float visc, float dt,
-                     float vorticity_conf_epsilon, RectangleObstacle **obstacle_mask,
+                     float vorticity_conf_epsilon, bool pressure_force_enabled, RectangleObstacle **obstacle_mask,
                      const std::vector<RectangleObstacle *> &obstacle_list);
+
+enum InteractionMode { SOLID, RIGID, Last };
 
 /* global variables */
 
@@ -55,6 +61,8 @@ static int dvel;
 static float vorticity_conf_epsilon = 160;
 static bool vorticity_conf_enabled = true;
 static bool temp_enabled = false;
+static bool pressure_force_enabled = true;
+static InteractionMode current_interaction_mode = RIGID;
 
 static float *u, *v, *u_prev, *v_prev;
 static float *dens, *dens_prev;
@@ -71,6 +79,10 @@ static RectangleObstacle **obstacle_mask;
 static std::vector<RectangleObstacle *> obstacles;
 static RectangleObstacle *interacting_obstacle;
 static Vec2f interaction_object_pos;
+
+static bool ui_info_enabled = true;
+static std::string ui_info = ""; // Toggle visibility with 'i'
+static std::string ui_notification = "";
 
 /*
   ----------------------------------------------------------------------
@@ -227,7 +239,7 @@ static void draw_velocity(void) {
 
 static void color_from_dens_and_temp(float dens, float temp) {
     float r = std::clamp((temp + 10.0f) / 110.0f, 0.0f, 1.0f);
-    //float g = std::clamp(1.0f - std::abs(temp - 50.0f) / 50.0f, 0.0f, 1.0f);
+    // float g = std::clamp(1.0f - std::abs(temp - 50.0f) / 50.0f, 0.0f, 1.0f);
     float g = 0.3;
     float b = std::clamp(1.0f - temp / 110.0f, 0.0f, 1.0f);
     r *= std::clamp(dens, 0.0f, 1.0f) * 0.7 + 0.3;
@@ -282,7 +294,7 @@ static void draw_interaction(void) {
         glBegin(GL_LINES);
         glColor3f(1.0f, 1.0f, 0.0f);
         Vec2f object_world_pos = interacting_obstacle->objectSpaceToWorldSpace(interaction_object_pos);
-        Vec2f mouse_world_pos = Vec2f (mx / float(win_x), (win_y - my) / float(win_y));
+        Vec2f mouse_world_pos = Vec2f(mx / float(win_x), (win_y - my) / float(win_y));
         glVertex2f(object_world_pos[0], object_world_pos[1]);
         glVertex2f(mouse_world_pos[0], mouse_world_pos[1]);
         glEnd();
@@ -355,17 +367,30 @@ static void set_obstacle_mask() {
 static void handle_interaction() {
     if (!interacting_obstacle)
         return;
+    switch (current_interaction_mode) {
+        case RIGID: {
+            Vec2f object_world_pos = interacting_obstacle->objectSpaceToWorldSpace(interaction_object_pos);
+            Vec2f object_velocity =
+                    interacting_obstacle->getVelocityFromPosition(object_world_pos[0], object_world_pos[1]);
+            Vec2f mouse_world_pos = Vec2f(mx / float(win_x), (win_y - my) / float(win_y));
 
-    Vec2f object_world_pos = interacting_obstacle->objectSpaceToWorldSpace(interaction_object_pos);
-    Vec2f object_velocity = interacting_obstacle->getVelocityFromPosition(object_world_pos[0], object_world_pos[1]);
-    Vec2f mouse_world_pos = Vec2f (mx / float(win_x), (win_y - my) / float(win_y));
+            float spring_constant = 0.05;
+            float damping = 0.02;
+            Vec2f delta = (mouse_world_pos - object_world_pos);
+            Vec2f force = spring_constant * delta - damping * object_velocity;
 
-    float spring_constant = 0.05;
-    float damping = 0.02;
-    Vec2f delta = (mouse_world_pos - object_world_pos);
-    Vec2f force = spring_constant * delta - damping * object_velocity;
-
-    interacting_obstacle->addForceAtPosition(force, object_world_pos);
+            interacting_obstacle->addForceAtPosition(force, object_world_pos);
+            break;
+        }
+        case SOLID: {
+            float delta_x = (mx - omx) / (float) win_x;
+            float delta_y = (omy - my) / (float) win_y;
+            interacting_obstacle->setVelocity(Vec2f(delta_x, delta_y) / dt);
+            interacting_obstacle->m_AngularVelocity = 0.0f;
+        }
+        default:
+            break;
+    }
 }
 
 static void begin_object_interaction() {
@@ -413,6 +438,76 @@ static void move_objects() {
     }
 }
 
+
+/*
+  ----------------------------------------------------------------------
+   Text rendering
+  ----------------------------------------------------------------------
+*/
+
+static int getBitmapStringWidth(const std::string &text, void *font) {
+    int width = 0;
+    for (char c: text) {
+        width += glutBitmapWidth(font, c);
+    }
+    return width;
+}
+
+std::vector<std::string> splitLines(const std::string &str) {
+    std::vector<std::string> lines;
+    std::istringstream ss(str);
+    std::string line;
+    while (std::getline(ss, line)) {
+        lines.push_back(line);
+    }
+    return lines;
+}
+
+static void draw_text(float x, float y, std::string &str, void *font = GLUT_BITMAP_HELVETICA_12,
+                      std::array<float, 3> color = {1.0, 1.0, 1.0}) {
+    if (str == "")
+        return;
+
+    float line_height = 0.03;
+    auto lines = splitLines(str);
+
+    glColor3f(color[0], color[1], color[2]);
+    for (size_t i = 0; i < lines.size(); ++i) {
+        glRasterPos2f(x, y - i * line_height);
+        for (char c: lines[i]) {
+            glutBitmapCharacter(font, c);
+        }
+    }
+}
+
+static void update_info_text() {
+    std::ostringstream ss;
+    ss << std::fixed << std::setprecision(2)
+       << "Interaction mode (m): " << (current_interaction_mode == RIGID ? "Rigid" : "Solid")
+       << "\nVorticity conf (r): " << (vorticity_conf_enabled ? "ON" : "OFF")
+       << "\nTemperature (t): " << (temp_enabled ? "ON" : "OFF")
+       << "\nPressure force (p): " << (pressure_force_enabled ? "ON" : "OFF");
+    ui_info = ss.str();
+}
+
+static void clear_notification(int value) { ui_notification = ""; }
+
+static void set_notification(std::string message, int duration = 3000) {
+    ui_notification = message;
+    glutTimerFunc(duration, clear_notification, 0);
+}
+
+static void draw_ui_overlay() {
+    if (ui_info_enabled) {
+        update_info_text();
+        draw_text(0.05, 0.95, ui_info);
+    }
+
+    float centered_x = 0.5 * (1 - static_cast<float>(getBitmapStringWidth(ui_notification, GLUT_BITMAP_HELVETICA_12)) /
+                                          static_cast<float>(win_x));
+    draw_text(centered_x, 0.05, ui_notification, GLUT_BITMAP_HELVETICA_12, {1.0, 0.0, 0.0});
+}
+
 /*
   ----------------------------------------------------------------------
    GLUT callback routines
@@ -420,6 +515,8 @@ static void move_objects() {
 */
 
 static void key_func(unsigned char key, int x, int y) {
+    std::ostringstream ss;
+
     switch (key) {
         case 'c':
         case 'C':
@@ -435,22 +532,47 @@ static void key_func(unsigned char key, int x, int y) {
         case 'r':
         case 'R':
             vorticity_conf_enabled = !vorticity_conf_enabled;
-            std::cout << "Vorticity confinement is " << (vorticity_conf_enabled ? "enabled." : "disabled.")
-                      << std::endl;
+            ss << "Vorticity confinement is " << (vorticity_conf_enabled ? "enabled." : "disabled.");
+            std::cout << ss.str() << std::endl;
+            set_notification(ss.str());
             break;
         case 't':
         case 'T':
             temp_enabled = !temp_enabled;
-            std::cout << "Temperature is " << (temp_enabled ? "enabled." : "disabled.") << std::endl;
+            ss << "Temperature is " << (temp_enabled ? "enabled." : "disabled.");
+            std::cout << ss.str() << std::endl;
+            set_notification(ss.str());
+
             if (!temp_enabled) {
                 for (int i = 0; i < (N + 2) * (N + 2); i++) {
                     temp[i] = temp_prev[i] = 0.0f;
                 }
             }
             break;
+        case 'p':
+        case 'P':
+            pressure_force_enabled = !pressure_force_enabled;
+            ss << "Pressure force is " << (pressure_force_enabled ? "enabled." : "disabled.");
+            std::cout << ss.str() << std::endl;
+            set_notification(ss.str());
+            break;
+        case 'm':
+        case 'M':
+            current_interaction_mode = (InteractionMode) ((int) current_interaction_mode + 1) == Last
+                                               ? (InteractionMode) 0
+                                               : (InteractionMode) ((int) current_interaction_mode + 1);
+            pressure_force_enabled = current_interaction_mode == RIGID;
+            ss << "Switched to " << (current_interaction_mode == RIGID ? "rigid" : "solid") << " mode.";
+            std::cout << ss.str() << std::endl;
+            set_notification(ss.str());
+            break;
         case 'v':
         case 'V':
             dvel = !dvel;
+            break;
+        case 'i':
+        case 'I':
+            ui_info_enabled = !ui_info_enabled;
             break;
         default:
             if (std::isdigit(key)) {
@@ -497,8 +619,8 @@ static void idle_func(void) {
     handle_interaction();
     move_objects();
     set_obstacle_mask();
-    vel_step(N, u, v, u_prev, v_prev, temp, visc, dt, vorticity_conf_enabled ? vorticity_conf_epsilon : 0.0, obstacle_mask,
-             obstacles);
+    vel_step(N, u, v, u_prev, v_prev, temp, visc, dt, vorticity_conf_enabled ? vorticity_conf_epsilon : 0.0,
+             pressure_force_enabled, obstacle_mask, obstacles);
     dens_step(N, dens, dens_prev, u, v, diff, dt, obstacle_mask, obstacles);
     if (temp_enabled) {
         temp_step(N, temp, temp_prev, u, v, 0.00001, dt, obstacle_mask, obstacles);
@@ -522,6 +644,8 @@ static void display_func(void) {
     draw_obstacles();
 
     draw_interaction();
+
+    draw_ui_overlay();
 
     post_display();
 }

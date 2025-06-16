@@ -1,8 +1,8 @@
 #pragma once
 
 #include <array>
-#include <optional>
 #include <gfx/vec2.h>
+#include <optional>
 
 class RectangleObstacle {
 public:
@@ -26,10 +26,11 @@ public:
     // static std::optional<Vec2f> areColliding(const RectangleObstacle& o1, const RectangleObstacle& o2);
     std::optional<Vec2f> isCollidingWith(const RectangleObstacle &other) const;
 
-    static std::pair<Vec2f, bool> bisection (float dt, RectangleObstacle& o1, RectangleObstacle& o2);
-    static void applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle& vertexObj, RectangleObstacle& faceObj);
+    static std::pair<Vec2f, bool> bisection(float dt, RectangleObstacle &o1, RectangleObstacle &o2);
+    static void applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj, RectangleObstacle &faceObj);
 
     Vec2f m_Velocity = Vec2f(0.0, 0.0);
+    float m_AngularVelocity = 0.0f;
 
 private:
     Vec2f m_P1; // Relative bottom left position from m_Position
@@ -39,6 +40,5 @@ private:
     float m_Mass;
     float m_Torque = 0.0f;
     float m_Rotation = 0.0f;
-    float m_AngularVelocity = 0.0f;
     float m_Inertia;
 };

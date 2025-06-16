@@ -78,7 +78,7 @@ void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
     Vec2f velocityAtPosition = 0;
     if (obstacle_mask[IX(i, j)]) {
         velocityAtPosition =
-            obstacle_mask[IX(i, j)]->getVelocityFromPosition(((float) i + 0.5) / N, ((float) j + 0.5) / N);
+                obstacle_mask[IX(i, j)]->getVelocityFromPosition(((float) i + 0.5) / N, ((float) j + 0.5) / N);
     }
     if (i > 0 && !obstacle_mask[IX(i - 1, j)]) {
         sum += b == 1 ? -x[IX(i - 1, j)] + 2 * velocityAtPosition[0] : x[IX(i - 1, j)];
@@ -161,41 +161,39 @@ void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, Rec
     set_bnd(N, b, d, obstacle_mask);
 }
 
-void applyPressureForces(
-    int N,
-    float *p,
-    RectangleObstacle **obstacle_mask
-) {
+void applyPressureForces(int N, float *p, RectangleObstacle **obstacle_mask) {
     int i, j;
     float h = 1.0f / N;
     float coupling_strength = 3.0f;
     FOR_EACH_CELL {
-        RectangleObstacle *ob = obstacle_mask[IX(i,j)];
-        if (!ob) continue;
+        RectangleObstacle *ob = obstacle_mask[IX(i, j)];
+        if (!ob)
+            continue;
 
         Vec2f pos = Vec2f((i + 0.5f) / N, (j + 0.5f) / N);
 
-        if (i > 2 && !obstacle_mask[IX(i-1,j)]) {
-            float faceP = 0.5f * (p[IX(i,j)] + p[IX(i-1,j)]);
+        if (i > 2 && !obstacle_mask[IX(i - 1, j)]) {
+            float faceP = 0.5f * (p[IX(i, j)] + p[IX(i - 1, j)]);
             Vec2f dF = -faceP * Vec2f(-1, 0) * h * coupling_strength;
             ob->addForceAtPosition(dF, pos);
         }
-        if (i < N - 1 && !obstacle_mask[IX(i+1,j)]) {
-            float faceP = 0.5f * (p[IX(i,j)] + p[IX(i+1,j)]);
+        if (i < N - 1 && !obstacle_mask[IX(i + 1, j)]) {
+            float faceP = 0.5f * (p[IX(i, j)] + p[IX(i + 1, j)]);
             Vec2f dF = -faceP * Vec2f(1, 0) * h * coupling_strength;
             ob->addForceAtPosition(dF, pos);
         }
-        if (j > 2 && !obstacle_mask[IX(i,j-1)]) {
-            float faceP = 0.5f * (p[IX(i,j)] + p[IX(i,j-1)]);
+        if (j > 2 && !obstacle_mask[IX(i, j - 1)]) {
+            float faceP = 0.5f * (p[IX(i, j)] + p[IX(i, j - 1)]);
             Vec2f dF = -faceP * Vec2f(0, -1) * h * coupling_strength;
             ob->addForceAtPosition(dF, pos);
         }
-        if (j < N - 1 && !obstacle_mask[IX(i,j+1)]) {
-            float faceP = 0.5f * (p[IX(i,j)] + p[IX(i,j+1)]);
+        if (j < N - 1 && !obstacle_mask[IX(i, j + 1)]) {
+            float faceP = 0.5f * (p[IX(i, j)] + p[IX(i, j + 1)]);
             Vec2f dF = -faceP * Vec2f(0, 1) * h * coupling_strength;
             ob->addForceAtPosition(dF, pos);
         }
-    } END_FOR;
+    }
+    END_FOR;
 }
 
 
@@ -210,7 +208,6 @@ void project(int N, float *u, float *v, float *p, float *div, RectangleObstacle 
     set_bnd(N, 0, p, obstacle_mask);
 
     lin_solve(N, 0, p, div, 1, 4, obstacle_mask);
-
 
 
     FOR_EACH_CELL
@@ -258,7 +255,7 @@ void dens_step(int N, float *x, float *x0, float *u, float *v, float diff, float
 }
 
 void temp_step(int N, float *x, float *x0, float *u, float *v, float diff, float dt, RectangleObstacle **obstacle_mask,
-    const std::vector<RectangleObstacle *> &obstacle_list) {
+               const std::vector<RectangleObstacle *> &obstacle_list) {
     add_source(N, x, x0, dt);
     SWAP(x0, x);
     diffuse(N, 3, x, x0, diff, dt, obstacle_mask);
@@ -267,8 +264,9 @@ void temp_step(int N, float *x, float *x0, float *u, float *v, float diff, float
 }
 
 
-void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp,float visc, float dt, float vorticity_conf_epsilon,
-              RectangleObstacle **obstacle_mask, const std::vector<RectangleObstacle *> &obstacle_list) {
+void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp, float visc, float dt,
+              float vorticity_conf_epsilon, bool pressure_force_enabled, RectangleObstacle **obstacle_mask,
+              const std::vector<RectangleObstacle *> &obstacle_list) {
     // vel: u,v - source forces u0, v0
     add_source(N, u, u0, dt);
     add_source(N, v, v0, dt);
@@ -277,7 +275,8 @@ void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp,float
     add_vorticity_conf_forces(N, u, v, u0, vorticity_conf_epsilon, dt);
     // vel: u,v - buffers u0, v0
     project(N, u, v, u0, v0, obstacle_mask);
-    applyPressureForces(N, u0, obstacle_mask);
+    if (pressure_force_enabled)
+        applyPressureForces(N, u0, obstacle_mask);
     // vel: u,v - buffers u0(stores pressure), v0
     // vel: u,v - buffers u0, v0
     SWAP(u0, u);
@@ -287,7 +286,8 @@ void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp,float
     diffuse(N, 2, v, v0, visc, dt, obstacle_mask);
     // vel: u,v - buffers u0, v0
     project(N, u, v, u0, v0, obstacle_mask);
-    applyPressureForces(N, u0, obstacle_mask);
+    if (pressure_force_enabled)
+        applyPressureForces(N, u0, obstacle_mask);
     // vel: u,v - buffers u0(stores pressure), v0
     SWAP(u0, u);
     SWAP(v0, v);
@@ -296,6 +296,7 @@ void vel_step(int N, float *u, float *v, float *u0, float *v0, float *temp,float
     advect(N, 2, v, v0, u0, v0, dt, obstacle_mask, obstacle_list);
     // vel: u,v - buffers u0, v0
     project(N, u, v, u0, v0, obstacle_mask);
-    applyPressureForces(N, u0, obstacle_mask);
+    if (pressure_force_enabled)
+        applyPressureForces(N, u0, obstacle_mask);
     // vel: u,v - buffers u0(stores pressure), v0
 }
