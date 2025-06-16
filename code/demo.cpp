@@ -727,7 +727,11 @@ int main(int argc, char **argv) {
     printf("\t Toggle density/velocity display with the 'v' key\n");
     printf("\t Clear the simulation by pressing the 'c' key\n");
     printf("\t Quit by pressing the 'q' key\n");
+    printf("\t Toggle simulation info with the 'i' key\n");
+    printf("\t Change the interaction mode with the 'm' key\n");
     printf("\t Toggle vorticity confinement with the 'r' key\n");
+    printf("\t Toggle temperature with the 't' key\n");
+    printf("\t Toggle pressure forces with the 'p' key\n");
 
     dvel = 0;
 
