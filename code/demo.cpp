@@ -63,6 +63,8 @@ static bool vorticity_conf_enabled = true;
 static bool temp_enabled = false;
 static bool pressure_force_enabled = true;
 static InteractionMode current_interaction_mode = RIGID;
+static bool collision_enabled = true;
+static bool should_sprinkle_density_once = false;
 
 static float *u, *v, *u_prev, *v_prev;
 static float *dens, *dens_prev;
@@ -131,10 +133,12 @@ static void clear_data(void) {
     // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
     //  obstacles.push_back(new RectangleObstacle(N, 2, 2, 8, 8));
     // obstacles.push_back(new RectangleObstacle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.3f), 0.5f, 0.2f, 1.0f));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.3f), 0.4f, 0.05f, 1.0f));
     obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.6f), 0.1f, 0.10f, 1.0f));
     obstacles.push_back(new RectangleObstacle(N, Vec2f(0.2f, 0.9f), 0.1f, 0.10f, 1.0f));
     obstacles.push_back(new RectangleObstacle(N, Vec2f(0.8f, 0.9f), 0.1f, 0.10f, 1.0f));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.8f, 0.4f), 0.1f, 0.10f, 1.0f));
+    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.3f, 0.4f), 0.1f, 0.10f, 1.0f));
     // obstacles.push_back(new SolidBoundary(N));
     for (i = 0; i < obstacles.size(); i++) {
         obstacles[i]->addToObstacleMask(N, obstacle_mask);
@@ -238,13 +242,13 @@ static void draw_velocity(void) {
 }
 
 static void color_from_dens_and_temp(float dens, float temp) {
-    float r = std::clamp((temp + 10.0f) / 110.0f, 0.0f, 1.0f);
+    float r = std::clamp((temp + 20.0f) / 120.0f, 0.0f, 1.0f);
     // float g = std::clamp(1.0f - std::abs(temp - 50.0f) / 50.0f, 0.0f, 1.0f);
     float g = 0.3;
-    float b = std::clamp(1.0f - temp / 110.0f, 0.0f, 1.0f);
-    r *= std::clamp(dens, 0.0f, 1.0f) * 0.7 + 0.3;
-    g *= std::clamp(dens, 0.0f, 1.0f) * 0.7 + 0.3;
-    b *= std::clamp(dens, 0.0f, 1.0f) * 0.7 + 0.3;
+    float b = std::clamp(1.0f - temp / 120.0f, 0.0f, 1.0f);
+    r *= std::clamp(dens, 0.0f, 1.0f) * 0.85 + 0.15;
+    g *= std::clamp(dens, 0.0f, 1.0f) * 0.85 + 0.15;
+    b *= std::clamp(dens, 0.0f, 1.0f) * 0.85 + 0.15;
     glColor3f(r, g, b);
 }
 
@@ -309,6 +313,16 @@ static void draw_interaction(void) {
 
 static void add_dens_and_vel_from_UI(float *d, float *u, float *v, float *temp) {
     int i, j, size = (N + 2) * (N + 2);
+
+    if (should_sprinkle_density_once) {
+        should_sprinkle_density_once = false;
+        int dots = size / 100;
+        for (i = 0; i < dots; i++) {
+            int x = (rand() % N) + 1;
+            int y = (rand() % N) + 1;
+            dens[IX(x, y)] = source / 10;
+        }
+    }
 
     for (i = 0; i < size; i++) {
         u[i] = v[i] = d[i] = temp[i] = 0.0f;
@@ -417,16 +431,34 @@ static void end_object_interaction() {
 static void handle_collision() {
     for (size_t i = 0; i < obstacles.size(); ++i) {
         for (size_t j = i + 1; j < obstacles.size(); ++j) {
-            if (obstacles[i]->isCollidingWith(*obstacles[j]) || obstacles[j]->isCollidingWith(*obstacles[i])) {
-                // Backtrack
-                auto [collisionVertex, isFromObject1] = RectangleObstacle::bisection(dt, *obstacles[i], *obstacles[j]);
-
-                if (isFromObject1) {
-                    RectangleObstacle::applyCollisionImpulse(collisionVertex, *obstacles[i], *obstacles[j]);
-                } else {
-                    RectangleObstacle::applyCollisionImpulse(collisionVertex, *obstacles[j], *obstacles[i]);
-                }
+            for (auto vertex : obstacles[i]->getVerticesInRectangle(*obstacles[j])) {
+                RectangleObstacle::applyCollisionImpulse(vertex, *obstacles[i], *obstacles[j], dt);
             }
+            for (auto vertex : obstacles[j]->getVerticesInRectangle(*obstacles[i])) {
+                RectangleObstacle::applyCollisionImpulse(vertex, *obstacles[j], *obstacles[i], dt);
+            }
+            //if (obstacles[i]->isCollidingWith(*obstacles[j]) || obstacles[j]->isCollidingWith(*obstacles[i])) {
+            //    // Backtrack
+            //    auto [collisionVertex, isFromObject1] = RectangleObstacle::bisection(dt, *obstacles[i], *obstacles[j]);
+
+            //    if (isFromObject1) {
+            //        RectangleObstacle::applyCollisionImpulse(collisionVertex, *obstacles[i], *obstacles[j], dt);
+            //    } else {
+            //        RectangleObstacle::applyCollisionImpulse(collisionVertex, *obstacles[j], *obstacles[i], dt);
+            //    }
+            //}
+        }
+        for (auto vertex : obstacles[i]->getVerticesInWall({0.0f, 0.0f}, {1.0f, 0.0f})) {
+            obstacles[i]->applyWallCollisionImpulse(vertex, {1.0f, 0.0f}, dt);
+        }
+        for (auto vertex : obstacles[i]->getVerticesInWall({0.0f, 0.0f}, {0.0f, 1.0f})) {
+            obstacles[i]->applyWallCollisionImpulse(vertex, {0.0f, 1.0f}, dt);
+        }
+        for (auto vertex : obstacles[i]->getVerticesInWall({1.0f, 1.0f}, {-1.0f, 0.0f})) {
+            obstacles[i]->applyWallCollisionImpulse(vertex, {-1.0f, 0.0f}, dt);
+        }
+        for (auto vertex : obstacles[i]->getVerticesInWall({1.0f, 1.0f}, {0.0f, -1.0f})) {
+            obstacles[i]->applyWallCollisionImpulse(vertex, {0.0f, -1.0f}, dt);
         }
     }
 }
@@ -434,7 +466,13 @@ static void handle_collision() {
 
 static void move_objects() {
     for (auto o: obstacles) {
+        if (current_interaction_mode == SOLID) {
+            o->m_AngularVelocity = 0.0f;
+        }
         o->moveObject(dt);
+        if (current_interaction_mode == SOLID) {
+            o->m_Velocity = Vec2f(0.0f, 0.0f);
+        }
     }
 }
 
@@ -483,10 +521,11 @@ static void draw_text(float x, float y, std::string &str, void *font = GLUT_BITM
 static void update_info_text() {
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2)
-       << "Interaction mode (m): " << (current_interaction_mode == RIGID ? "Rigid" : "Solid")
+       << "Interaction mode (m): " << (current_interaction_mode == RIGID ? "Rigid body" : "Solid obstacle")
        << "\nVorticity conf (r): " << (vorticity_conf_enabled ? "ON" : "OFF")
        << "\nTemperature (t): " << (temp_enabled ? "ON" : "OFF")
-       << "\nPressure force (p): " << (pressure_force_enabled ? "ON" : "OFF");
+       << "\nPressure force (p): " << (pressure_force_enabled ? "ON" : "OFF")
+       << "\nCollisions (x): " << (collision_enabled ? "ON" : "OFF");
     ui_info = ss.str();
 }
 
@@ -562,7 +601,8 @@ static void key_func(unsigned char key, int x, int y) {
                                                ? (InteractionMode) 0
                                                : (InteractionMode) ((int) current_interaction_mode + 1);
             pressure_force_enabled = current_interaction_mode == RIGID;
-            ss << "Switched to " << (current_interaction_mode == RIGID ? "rigid" : "solid") << " mode.";
+            collision_enabled = current_interaction_mode == RIGID;
+            ss << "Switched to " << (current_interaction_mode == RIGID ? "rigid body" : "solid obstacle") << " mode.";
             std::cout << ss.str() << std::endl;
             set_notification(ss.str());
             break;
@@ -573,6 +613,16 @@ static void key_func(unsigned char key, int x, int y) {
         case 'i':
         case 'I':
             ui_info_enabled = !ui_info_enabled;
+            break;
+        case 'x':
+        case 'X':
+            collision_enabled = !collision_enabled;
+            ss << "Collisions are " << (collision_enabled ? "enabled." : "disabled.");
+            std::cout << ss.str() << std::endl;
+            set_notification(ss.str());
+            break;
+        case ' ':
+            should_sprinkle_density_once = true;
             break;
         default:
             if (std::isdigit(key)) {
@@ -615,9 +665,7 @@ static void reshape_func(int width, int height) {
 
 static void idle_func(void) {
     add_dens_and_vel_from_UI(dens_prev, u_prev, v_prev, temp_prev);
-    handle_collision();
     handle_interaction();
-    move_objects();
     set_obstacle_mask();
     vel_step(N, u, v, u_prev, v_prev, temp, visc, dt, vorticity_conf_enabled ? vorticity_conf_epsilon : 0.0,
              pressure_force_enabled, obstacle_mask, obstacles);
@@ -625,6 +673,10 @@ static void idle_func(void) {
     if (temp_enabled) {
         temp_step(N, temp, temp_prev, u, v, 0.00001, dt, obstacle_mask, obstacles);
     }
+    if (collision_enabled) {
+        handle_collision();
+    }
+    move_objects();
 
     omx = mx;
     omy = my;
@@ -722,7 +774,8 @@ int main(int argc, char **argv) {
     }
 
     printf("\n\nHow to use this demo:\n\n");
-    printf("\t Add densities with the right mouse button\n");
+    printf("\t Add densities with the right mouse button.\n");
+    printf("\t Sprinkle density over large area with space.\n");
     printf("\t Add velocities with the left mouse button and dragging the mouse\n");
     printf("\t Toggle density/velocity display with the 'v' key\n");
     printf("\t Clear the simulation by pressing the 'c' key\n");
@@ -732,6 +785,7 @@ int main(int argc, char **argv) {
     printf("\t Toggle vorticity confinement with the 'r' key\n");
     printf("\t Toggle temperature with the 't' key\n");
     printf("\t Toggle pressure forces with the 'p' key\n");
+    printf("\t Toggle collision with the 'x' key\n");
 
     dvel = 0;
 

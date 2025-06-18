@@ -86,7 +86,7 @@ void RectangleObstacle::alignPositionToGrid(int N) {
 
 void RectangleObstacle::draw() {
     glBegin(GL_QUADS);
-    glColor4f(1.0f, 0.0f, 0.0f, 1.0f);
+    glColor4f(0.8f, 0.8f, 0.8f, 1.0f);
 
     // Calculate corner positions including rotation
     Vec2f botLeft = objectSpaceToWorldSpace(m_P1);
@@ -201,44 +201,107 @@ Vec2f RectangleObstacle::getCollisionNormal(const Vec2f& position) const{
     return collisionNormal / norm(collisionNormal);
 }
 
-void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj, RectangleObstacle &faceObj) {
-    float epsilon = 0.1;
+std::vector<Vec2f> RectangleObstacle::getVerticesInWall(Vec2f wall_position, Vec2f wall_normal) const {
+    std::vector<Vec2f> result;
+    for (auto vertex : getWorldSpaceVertices()) {
+        if ((vertex - wall_position) * wall_normal < 0.0f) {
+            result.push_back(vertex);
+        }
+    }
+    return result;
+}
 
-    // Get normal on faceObj
-    Vec2f collisionNormal = faceObj.getCollisionNormal(collisionVertex);
+std::vector<Vec2f> RectangleObstacle::getVerticesInRectangle(RectangleObstacle &other) const {
+    std::vector<Vec2f> result;
+    for (auto vertex : getWorldSpaceVertices()) {
+        if (other.isInside(vertex[0], vertex[1])) {
+            result.push_back(vertex);
+        }
+    }
+    return result;
+}
 
-    // sub-computations for j
-    Vec2f v1 = vertexObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
-    Vec2f v2 = faceObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
-    float vRelNeg = collisionNormal * (v1 - v2);
 
-    // If this is positive, the obstacles are moving away from each other and we don't want to apply forces.
-    if (vRelNeg > 0) {
-       return;
+void RectangleObstacle::applyWallCollisionImpulse(Vec2f position, Vec2f normal, float dt) {
+    float bounce = 0.9;
+
+    Vec2f v1 = getVelocityFromPosition(position[0], position[1]);
+    Vec2f v2{0.0f, 0.0f};
+    Vec2f r1 = position - m_Position;
+    Vec2f r2{0.0f, 0.0f};
+    Vec2f impulse = RectangleObstacle::computeCollisionImpulse(
+        v1, v2, r1, r2, normal, m_Mass, std::numeric_limits<float>::infinity(), m_Inertia, std::numeric_limits<float>::infinity(), bounce);
+    addForceAtPosition(impulse / dt, position);
+}
+
+Vec2f RectangleObstacle::computeCollisionImpulse(Vec2f v1, Vec2f v2, Vec2f r1, Vec2f r2, Vec2f normal, float mass_1, float mass_2, float inertia_1,
+                                                 float inertia_2, float bounce) {
+    float vRelNeg = normal * (v1 - v2);
+    if (vRelNeg > 0.0f) {
+        return {0.0f, 0.0f};
     }
 
-    Vec2f r1 = collisionVertex - vertexObj.m_Position;
-    Vec2f r2 = collisionVertex - faceObj.m_Position;
-    float r1Cross = r1[0] * collisionNormal[1] - r1[1] * collisionNormal[0];
-    float r2Cross = r2[0] * collisionNormal[1] - r2[1] * collisionNormal[0];
-    float denom1 = (r1Cross * r1Cross) / vertexObj.m_Inertia;
-    float denom2 = (r2Cross * r2Cross) / faceObj.m_Inertia;
+    float r1Cross = r1[0] * normal[1] - r1[1] * normal[0];
+    float r2Cross = r2[0] * normal[1] - r2[1] * normal[0];
+    float denom1 = inertia_1 != std::numeric_limits<float>::infinity() ? (r1Cross * r1Cross) / inertia_1 : 0.0f;
+    float denom2 = inertia_2 != std::numeric_limits<float>::infinity() ? (r2Cross * r2Cross) / inertia_2 : 0.0f;
+    denom1 += mass_1 != std::numeric_limits<float>::infinity() ? 1.0f / mass_1 : 0.0f;
+    denom2 += mass_2 != std::numeric_limits<float>::infinity() ? 1.0f / mass_2 : 0.0f;
 
     // Final j computation
-    float numerator = -(1 + epsilon) * vRelNeg;
-    float denominator = 1 / vertexObj.m_Mass + 1 / faceObj.m_Mass + denom1 + denom2;
+    float numerator = -(1 + bounce) * vRelNeg;
+    float denominator = denom1 + denom2;
     float j = numerator / denominator;
-    Vec2f force = collisionNormal * j;
+    Vec2f impulse = normal * j;
+    return impulse;
+}
 
-    // std::cout << "force: " << force << std::endl;
-    // std::cout << "angular pre: " << vertexObj.m_AngularVelocity << std::endl;
 
-    // Add to velocity states
-    vertexObj.m_Velocity += force / vertexObj.m_Mass;
-    faceObj.m_Velocity -= force / faceObj.m_Mass;
-    vertexObj.m_AngularVelocity += (r1[0] * force[1] - r1[1] * force[0]) / vertexObj.m_Inertia;
-    faceObj.m_AngularVelocity -= (r2[0] * force[1] - r2[1] * force[0]) / faceObj.m_Inertia;
-    // std::cout << "angular post: " << vertexObj.m_AngularVelocity << std::endl;
+void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj, RectangleObstacle &faceObj, float dt) {
+    float bounce = 0.9f;
+
+    Vec2f collisionNormal = faceObj.getCollisionNormal(collisionVertex);
+    Vec2f v1 = vertexObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+    Vec2f v2 = faceObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+    Vec2f r1 = collisionVertex - vertexObj.m_Position;
+    Vec2f r2 = collisionVertex - faceObj.m_Position;
+    Vec2f impulse = RectangleObstacle::computeCollisionImpulse(
+        v1, v2, r1, r2, collisionNormal, vertexObj.m_Mass, faceObj.m_Mass, vertexObj.m_Inertia, faceObj.m_Inertia, bounce);
+    vertexObj.addForceAtPosition(impulse / dt, collisionVertex);
+    faceObj.addForceAtPosition(-impulse / dt, collisionVertex);
+
+    // // sub-computations for j
+    // Vec2f v1 = vertexObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+    // Vec2f v2 = faceObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
+    // float vRelNeg = collisionNormal * (v1 - v2);
+
+    // // If this is positive, the obstacles are moving away from each other and we don't want to apply forces.
+    // if (vRelNeg > 0) {
+    //    return;
+    // }
+
+    // Vec2f r1 = collisionVertex - vertexObj.m_Position;
+    // Vec2f r2 = collisionVertex - faceObj.m_Position;
+    // float r1Cross = r1[0] * collisionNormal[1] - r1[1] * collisionNormal[0];
+    // float r2Cross = r2[0] * collisionNormal[1] - r2[1] * collisionNormal[0];
+    // float denom1 = (r1Cross * r1Cross) / vertexObj.m_Inertia;
+    // float denom2 = (r2Cross * r2Cross) / faceObj.m_Inertia;
+
+    // // Final j computation
+    // float numerator = -(1 + epsilon) * vRelNeg;
+    // float denominator = 1 / vertexObj.m_Mass + 1 / faceObj.m_Mass + denom1 + denom2;
+    // float j = numerator / denominator;
+    // Vec2f force = collisionNormal * j;
+
+    // // std::cout << "force: " << force << std::endl;
+    // // std::cout << "angular pre: " << vertexObj.m_AngularVelocity << std::endl;
+
+    // // Add to velocity states
+    // vertexObj.m_Velocity += force / vertexObj.m_Mass;
+    // faceObj.m_Velocity -= force / faceObj.m_Mass;
+    // vertexObj.m_AngularVelocity += (r1[0] * force[1] - r1[1] * force[0]) / vertexObj.m_Inertia;
+    // faceObj.m_AngularVelocity -= (r2[0] * force[1] - r2[1] * force[0]) / faceObj.m_Inertia;
+    // // std::cout << "angular post: " << vertexObj.m_AngularVelocity << std::endl;
 }
 
 

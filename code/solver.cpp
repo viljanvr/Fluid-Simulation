@@ -38,7 +38,7 @@ void add_source(int N, float *x, float *s, float dt) {
 void add_temp_forces(int N, float *v, float *temp, float dt) {
     int i, size = (N + 2) * (N + 2);
     for (i = 0; i < size; i++) {
-        v[i] += dt * temp[i] * 0.0001;
+        v[i] += dt * temp[i] * 0.0005;
     }
 }
 

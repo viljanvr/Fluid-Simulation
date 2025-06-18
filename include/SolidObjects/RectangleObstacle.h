@@ -26,8 +26,12 @@ public:
     // static std::optional<Vec2f> areColliding(const RectangleObstacle& o1, const RectangleObstacle& o2);
     std::optional<Vec2f> isCollidingWith(const RectangleObstacle &other) const;
 
+    std::vector<Vec2f> getVerticesInWall(Vec2f wall_position, Vec2f wall_normal) const;
+    std::vector<Vec2f> getVerticesInRectangle(RectangleObstacle &other) const;
+    void applyWallCollisionImpulse(Vec2f position, Vec2f normal, float dt);
     static std::pair<Vec2f, bool> bisection(float dt, RectangleObstacle &o1, RectangleObstacle &o2);
-    static void applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj, RectangleObstacle &faceObj);
+    static void applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj, RectangleObstacle &faceObj, float dt);
+    static Vec2f computeCollisionImpulse(Vec2f v1, Vec2f v2, Vec2f r1, Vec2f r2, Vec2f normal, float mass_1, float mass_2, float inertia_1, float inertia_2, float bounce);
 
     Vec2f m_Velocity = Vec2f(0.0, 0.0);
     float m_AngularVelocity = 0.0f;
