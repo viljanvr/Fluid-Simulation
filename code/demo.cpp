@@ -85,6 +85,7 @@ static Vec2f interaction_object_pos;
 static bool ui_info_enabled = true;
 static std::string ui_info = ""; // Toggle visibility with 'i'
 static std::string ui_notification = "";
+static int n_iterations = 0;
 
 /*
   ----------------------------------------------------------------------
@@ -525,7 +526,8 @@ static void update_info_text() {
        << "\nVorticity conf (r): " << (vorticity_conf_enabled ? "ON" : "OFF")
        << "\nTemperature (t): " << (temp_enabled ? "ON" : "OFF")
        << "\nPressure force (p): " << (pressure_force_enabled ? "ON" : "OFF")
-       << "\nCollisions (x): " << (collision_enabled ? "ON" : "OFF");
+       << "\nCollisions (x): " << (collision_enabled ? "ON" : "OFF")
+       << "\n\nIterations: " << n_iterations;
     ui_info = ss.str();
 }
 
@@ -681,6 +683,7 @@ static void idle_func(void) {
     omx = mx;
     omy = my;
 
+    n_iterations++;
     glutSetWindow(win_id);
     glutPostRedisplay();
 }
