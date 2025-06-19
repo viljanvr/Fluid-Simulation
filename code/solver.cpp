@@ -38,7 +38,7 @@ void add_source(int N, float *x, float *s, float dt) {
 void add_temp_forces(int N, float *v, float *temp, float dt) {
     int i, size = (N + 2) * (N + 2);
     for (i = 0; i < size; i++) {
-        v[i] += dt * temp[i] * 0.0005;
+        v[i] += dt * temp[i] * 0.0003;
     }
 }
 
@@ -76,7 +76,13 @@ void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
     int fluid_neighbor_count = 0;
     float sum = 0.0;
     Vec2f velocityAtPosition = 0;
-    if (obstacle_mask[IX(i, j)]) {
+
+    if (obstacle_mask[IX(i, j)] && (
+        (b == 1 && i > 0 && !obstacle_mask[IX(i - 1, j)]) ||
+        (b == 1 && i < N + 1 && !obstacle_mask[IX(i + 1, j)]) ||
+        (b == 2 && j > 0 && !obstacle_mask[IX(i, j - 1)]) ||
+        (b == 2 && j < N + 1 && !obstacle_mask[IX(i, j + 1)])
+    )) {
         velocityAtPosition =
                 obstacle_mask[IX(i, j)]->getVelocityFromPosition(((float) i + 0.5) / N, ((float) j + 0.5) / N);
     }
@@ -107,7 +113,7 @@ void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
 void lin_solve(int N, int b, float *x, float *x0, float a, float c, RectangleObstacle **obstacle_mask) {
     int i, j, k;
 
-    for (k = 0; k < 50; k++) {
+    for (k = 0; k < 45; k++) {
         FOR_EACH_CELL
         x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i - 1, j)] + x[IX(i + 1, j)] + x[IX(i, j - 1)] + x[IX(i, j + 1)])) / c;
         END_FOR
