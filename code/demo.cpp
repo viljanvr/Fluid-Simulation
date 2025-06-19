@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <vector>
 #include "RectangleObstacle.h"
+#include "ScenePresets.h"
 #include "gfx/vec2.h"
 #include "jet_colormap.h"
 #include "viridis_colormap.h"
@@ -50,7 +51,6 @@ extern void vel_step(int N, float *u, float *v, float *u0, float *v0, float *tem
                      float vorticity_conf_epsilon, bool pressure_force_enabled, RectangleObstacle **obstacle_mask,
                      const std::vector<RectangleObstacle *> &obstacle_list);
 
-enum InteractionMode { SOLID, RIGID, Last };
 
 /* global variables */
 
@@ -87,6 +87,8 @@ static std::string ui_info = ""; // Toggle visibility with 'i'
 static std::string ui_notification = "";
 static int n_iterations = 0;
 static std::chrono::high_resolution_clock::time_point start_time;
+
+static int scene_id = 1;
 
 /*
   ----------------------------------------------------------------------
@@ -131,20 +133,6 @@ static void clear_data(void) {
         delete o;
     }
     obstacles.clear();
-
-    // obstacles.push_back(new SolidCircle(N, Vec2f(0.5, 0.5), 0.07));
-    //  obstacles.push_back(new RectangleObstacle(N, 2, 2, 8, 8));
-    // obstacles.push_back(new RectangleObstacle(N, Vec2f(0.40f, 0.40f), Vec2f(0.60f, 0.60)));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.3f), 0.4f, 0.05f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.5f, 0.6f), 0.1f, 0.10f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.2f, 0.9f), 0.1f, 0.10f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.8f, 0.9f), 0.1f, 0.10f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.8f, 0.4f), 0.1f, 0.10f, 1.0f));
-    obstacles.push_back(new RectangleObstacle(N, Vec2f(0.3f, 0.4f), 0.1f, 0.10f, 1.0f));
-    // obstacles.push_back(new SolidBoundary(N));
-    for (i = 0; i < obstacles.size(); i++) {
-        obstacles[i]->addToObstacleMask(N, obstacle_mask);
-    }
 }
 
 static int allocate_data(void) {
@@ -433,15 +421,16 @@ static void end_object_interaction() {
 static void handle_collision() {
     for (size_t i = 0; i < obstacles.size(); ++i) {
         for (size_t j = i + 1; j < obstacles.size(); ++j) {
-            for (auto vertex : obstacles[i]->getVerticesInRectangle(*obstacles[j])) {
+            for (auto vertex: obstacles[i]->getVerticesInRectangle(*obstacles[j])) {
                 RectangleObstacle::applyCollisionImpulse(vertex, *obstacles[i], *obstacles[j], dt);
             }
-            for (auto vertex : obstacles[j]->getVerticesInRectangle(*obstacles[i])) {
+            for (auto vertex: obstacles[j]->getVerticesInRectangle(*obstacles[i])) {
                 RectangleObstacle::applyCollisionImpulse(vertex, *obstacles[j], *obstacles[i], dt);
             }
-            //if (obstacles[i]->isCollidingWith(*obstacles[j]) || obstacles[j]->isCollidingWith(*obstacles[i])) {
-            //    // Backtrack
-            //    auto [collisionVertex, isFromObject1] = RectangleObstacle::bisection(dt, *obstacles[i], *obstacles[j]);
+            // if (obstacles[i]->isCollidingWith(*obstacles[j]) || obstacles[j]->isCollidingWith(*obstacles[i])) {
+            //     // Backtrack
+            //     auto [collisionVertex, isFromObject1] = RectangleObstacle::bisection(dt, *obstacles[i],
+            //     *obstacles[j]);
 
             //    if (isFromObject1) {
             //        RectangleObstacle::applyCollisionImpulse(collisionVertex, *obstacles[i], *obstacles[j], dt);
@@ -450,16 +439,16 @@ static void handle_collision() {
             //    }
             //}
         }
-        for (auto vertex : obstacles[i]->getVerticesInWall({0.0f, 0.0f}, {1.0f, 0.0f})) {
+        for (auto vertex: obstacles[i]->getVerticesInWall({0.0f, 0.0f}, {1.0f, 0.0f})) {
             obstacles[i]->applyWallCollisionImpulse(vertex, {1.0f, 0.0f}, dt);
         }
-        for (auto vertex : obstacles[i]->getVerticesInWall({0.0f, 0.0f}, {0.0f, 1.0f})) {
+        for (auto vertex: obstacles[i]->getVerticesInWall({0.0f, 0.0f}, {0.0f, 1.0f})) {
             obstacles[i]->applyWallCollisionImpulse(vertex, {0.0f, 1.0f}, dt);
         }
-        for (auto vertex : obstacles[i]->getVerticesInWall({1.0f, 1.0f}, {-1.0f, 0.0f})) {
+        for (auto vertex: obstacles[i]->getVerticesInWall({1.0f, 1.0f}, {-1.0f, 0.0f})) {
             obstacles[i]->applyWallCollisionImpulse(vertex, {-1.0f, 0.0f}, dt);
         }
-        for (auto vertex : obstacles[i]->getVerticesInWall({1.0f, 1.0f}, {0.0f, -1.0f})) {
+        for (auto vertex: obstacles[i]->getVerticesInWall({1.0f, 1.0f}, {0.0f, -1.0f})) {
             obstacles[i]->applyWallCollisionImpulse(vertex, {0.0f, -1.0f}, dt);
         }
     }
@@ -522,9 +511,9 @@ static void draw_text(float x, float y, std::string &str, void *font = GLUT_BITM
 
 static void update_info_text() {
 
-        auto now = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::high_resolution_clock::now();
 
-        auto elapsed_time = std::chrono::duration<double>(now - start_time).count();
+    auto elapsed_time = std::chrono::duration<double>(now - start_time).count();
 
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2)
@@ -532,9 +521,8 @@ static void update_info_text() {
        << "\nVorticity conf (r): " << (vorticity_conf_enabled ? "ON" : "OFF")
        << "\nTemperature (t): " << (temp_enabled ? "ON" : "OFF")
        << "\nPressure force (p): " << (pressure_force_enabled ? "ON" : "OFF")
-       << "\nCollisions (x): " << (collision_enabled ? "ON" : "OFF")
-       << "\n\nIterations: " << n_iterations 
-       << "\nAvg. itererations/s: " << n_iterations/elapsed_time;
+       << "\nCollisions (x): " << (collision_enabled ? "ON" : "OFF") << "\n\nIterations: " << n_iterations
+       << "\nAvg. itererations/s: " << n_iterations / elapsed_time;
     ui_info = ss.str();
 }
 
@@ -569,6 +557,8 @@ static void key_func(unsigned char key, int x, int y) {
         case 'c':
         case 'C':
             clear_data();
+            ScenePresets::setScene(N, scene_id, obstacles, vorticity_conf_enabled, collision_enabled,
+                                   pressure_force_enabled, temp_enabled, current_interaction_mode);
             break;
 
         case 'q':
@@ -635,13 +625,10 @@ static void key_func(unsigned char key, int x, int y) {
             break;
         default:
             if (std::isdigit(key)) {
-                // If we want to use scenes like in project 1
-                // int n = key - '0';
-                // set_scene(n);
-
-                dens[IX(N / 2, N / 2)] = 100.0f;
-                u[IX(N / 2, N / 2)] = 5.0f;
-                v[IX(N / 2, N / 2)] = 0.0f;
+                scene_id = key - '0';
+                clear_data();
+                ScenePresets::setScene(N, scene_id, obstacles, vorticity_conf_enabled, collision_enabled,
+                                       pressure_force_enabled, temp_enabled, current_interaction_mode);
             }
     }
 }
@@ -802,6 +789,8 @@ int main(int argc, char **argv) {
     if (!allocate_data())
         exit(1);
     clear_data();
+    ScenePresets::setScene(N, scene_id, obstacles, vorticity_conf_enabled, collision_enabled, pressure_force_enabled,
+                           temp_enabled, current_interaction_mode);
 
     win_x = 512;
     win_y = 512;
