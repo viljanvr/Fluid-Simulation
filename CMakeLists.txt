@@ -21,6 +21,8 @@ set(SOURCES
         ${SRC_DIR}/SolidObjects/RectangleObstacle.cpp
         ${SRC_DIR}/SolidObjects/SolidBoundary.cpp
         ${SRC_DIR}/Object.cpp
+        ${SRC_DIR}/linearSolver.cpp
+        ${SRC_DIR}/ConjGradMatrix.cpp
 )
 
 # Create the executable
