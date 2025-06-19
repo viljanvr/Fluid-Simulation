@@ -86,6 +86,7 @@ static bool ui_info_enabled = true;
 static std::string ui_info = ""; // Toggle visibility with 'i'
 static std::string ui_notification = "";
 static int n_iterations = 0;
+static std::chrono::high_resolution_clock::time_point start_time;
 
 /*
   ----------------------------------------------------------------------
@@ -520,6 +521,11 @@ static void draw_text(float x, float y, std::string &str, void *font = GLUT_BITM
 }
 
 static void update_info_text() {
+
+        auto now = std::chrono::high_resolution_clock::now();
+
+        auto elapsed_time = std::chrono::duration<double>(now - start_time).count();
+
     std::ostringstream ss;
     ss << std::fixed << std::setprecision(2)
        << "Interaction mode (m): " << (current_interaction_mode == RIGID ? "Rigid body" : "Solid obstacle")
@@ -527,7 +533,8 @@ static void update_info_text() {
        << "\nTemperature (t): " << (temp_enabled ? "ON" : "OFF")
        << "\nPressure force (p): " << (pressure_force_enabled ? "ON" : "OFF")
        << "\nCollisions (x): " << (collision_enabled ? "ON" : "OFF")
-       << "\n\nIterations: " << n_iterations;
+       << "\n\nIterations: " << n_iterations 
+       << "\nAvg. itererations/s: " << n_iterations/elapsed_time;
     ui_info = ss.str();
 }
 
@@ -799,6 +806,8 @@ int main(int argc, char **argv) {
     win_x = 512;
     win_y = 512;
     open_glut_window();
+
+    start_time = std::chrono::high_resolution_clock::now();
 
     glutMainLoop();
 
