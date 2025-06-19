@@ -18,9 +18,9 @@ set(SRC_DIR code)
 set(SOURCES
         ${SRC_DIR}/demo.cpp
         ${SRC_DIR}/solver.cpp
-        ${SRC_DIR}/SolidObjects/SolidRectangle.cpp
-        ${SRC_DIR}/SolidObjects/SolidCircle.cpp
+        ${SRC_DIR}/SolidObjects/RectangleObstacle.cpp
         ${SRC_DIR}/SolidObjects/SolidBoundary.cpp
+        ${SRC_DIR}/Object.cpp
 )
 
 # Create the executable
