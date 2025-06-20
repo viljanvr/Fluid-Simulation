@@ -23,7 +23,8 @@ RectangleObstacle::RectangleObstacle(int N, Vec2f position, float width, float h
 
 // x, y, w, h in grid cells
 RectangleObstacle::RectangleObstacle(int N, int i, int j, int w, int h, float density) :
-    RectangleObstacle(N, Vec2f(((float) i + 0.5f) / N, ((float) j + 0.5f) / N), (float) w / N, (float) h / N, density) {}
+    RectangleObstacle(N, Vec2f(((float) i + 0.5f) / N, ((float) j + 0.5f) / N), (float) w / N, (float) h / N, density) {
+}
 
 Vec2f RectangleObstacle::getVelocityFromPosition(float x, float y) {
     Vec2f r = Vec2f(x, y) - m_Position;
@@ -76,7 +77,7 @@ void RectangleObstacle::moveObject(float dt) {
 bool RectangleObstacle::isInside(float x, float y) const {
     Vec2f objectSpace = worldSpaceToObjectSpace(Vec2f(x, y));
     return objectSpace[0] >= m_P1[0] && objectSpace[1] >= m_P1[1] && objectSpace[0] <= m_P2[0] &&
-                objectSpace[1] <= m_P2[1];
+           objectSpace[1] <= m_P2[1];
 }
 
 void RectangleObstacle::alignPositionToGrid(int N) {
@@ -115,7 +116,7 @@ std::array<float, 4> RectangleObstacle::getBoundingBox() {
     return {minX, maxX, minY, maxY};
 }
 
-std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f& start, const Vec2f& end) const {
+std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f &start, const Vec2f &end) const {
     if (norm(start - end) < 1e-6) {
         return std::nullopt;
     }
@@ -139,7 +140,8 @@ std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f& start
             }
             double t1 = (m_P1[i] - local_start[i]) / dir[i];
             double t2 = (m_P2[i] - local_start[i]) / dir[i];
-            if (t1 > t2) std::swap(t1, t2);
+            if (t1 > t2)
+                std::swap(t1, t2);
 
             tmin = std::max(tmin, t1);
             tmax = std::min(tmax, t2);
@@ -157,21 +159,21 @@ std::optional<Vec2f> RectangleObstacle::get_line_intersection(const Vec2f& start
     return intersection;
 }
 
-Vec2f RectangleObstacle::worldSpaceToObjectSpace(const Vec2f& position) const {
-    Vec2f delta = position - m_Position;
-    return Vec2f(std::cos(m_Rotation) * delta[0] + std::sin(m_Rotation) * delta[1],
-            -std::sin(m_Rotation) * delta[0] + std::cos(m_Rotation) * delta[1]);
+Vec2f RectangleObstacle::worldSpaceToObjectSpace(const Vec2f &position) const {
+    float delta_x = position[0] - m_Position[0];
+    float delta_y = position[1] - m_Position[1];
+    return Vec2f(std::cos(m_Rotation) * delta_x + std::sin(m_Rotation) * delta_y,
+                 -std::sin(m_Rotation) * delta_x + std::cos(m_Rotation) * delta_y);
 }
 
-Vec2f RectangleObstacle::objectSpaceToWorldSpace(const Vec2f& position) const {
+Vec2f RectangleObstacle::objectSpaceToWorldSpace(const Vec2f &position) const {
     float cosRot = std::cos(m_Rotation);
     float sinRot = std::sin(m_Rotation);
-    Vec2f rotation (position[0] * cosRot - position[1] * sinRot,
-                        position[0] * sinRot + position[1] * cosRot);
+    Vec2f rotation(position[0] * cosRot - position[1] * sinRot, position[0] * sinRot + position[1] * cosRot);
     return rotation + m_Position;
 }
 
-Vec2f closestPointOnEdge(const Vec2f& A, const Vec2f& B, const Vec2f& position) {
+Vec2f closestPointOnEdge(const Vec2f &A, const Vec2f &B, const Vec2f &position) {
     Vec2f AB = B - A;
     float t = ((position - A) * AB) / (AB * AB);
     t = std::clamp(t, 0.0f, 1.0f);
@@ -179,7 +181,7 @@ Vec2f closestPointOnEdge(const Vec2f& A, const Vec2f& B, const Vec2f& position) 
 }
 
 // Finds the closest edge, and computes the normal on it
-Vec2f RectangleObstacle::getCollisionNormal(const Vec2f& position) const{
+Vec2f RectangleObstacle::getCollisionNormal(const Vec2f &position) const {
     auto vertices = getWorldSpaceVertices();
     float minDist = std::numeric_limits<float>::max();
     Vec2f closestEdge;
@@ -196,14 +198,14 @@ Vec2f RectangleObstacle::getCollisionNormal(const Vec2f& position) const{
             closestEdge = B - A;
         }
     }
-    Vec2f collisionNormal (closestEdge[1], -closestEdge[0]);
+    Vec2f collisionNormal(closestEdge[1], -closestEdge[0]);
     // std::cout << "collisionNormal: " << collisionNormal / norm(collisionNormal) << std::endl;
     return collisionNormal / norm(collisionNormal);
 }
 
 std::vector<Vec2f> RectangleObstacle::getVerticesInWall(Vec2f wall_position, Vec2f wall_normal) const {
     std::vector<Vec2f> result;
-    for (auto vertex : getWorldSpaceVertices()) {
+    for (auto vertex: getWorldSpaceVertices()) {
         if ((vertex - wall_position) * wall_normal < 0.0f) {
             result.push_back(vertex);
         }
@@ -213,7 +215,7 @@ std::vector<Vec2f> RectangleObstacle::getVerticesInWall(Vec2f wall_position, Vec
 
 std::vector<Vec2f> RectangleObstacle::getVerticesInRectangle(RectangleObstacle &other) const {
     std::vector<Vec2f> result;
-    for (auto vertex : getWorldSpaceVertices()) {
+    for (auto vertex: getWorldSpaceVertices()) {
         if (other.isInside(vertex[0], vertex[1])) {
             result.push_back(vertex);
         }
@@ -229,13 +231,14 @@ void RectangleObstacle::applyWallCollisionImpulse(Vec2f position, Vec2f normal, 
     Vec2f v2{0.0f, 0.0f};
     Vec2f r1 = position - m_Position;
     Vec2f r2{0.0f, 0.0f};
-    Vec2f impulse = RectangleObstacle::computeCollisionImpulse(
-        v1, v2, r1, r2, normal, m_Mass, std::numeric_limits<float>::infinity(), m_Inertia, std::numeric_limits<float>::infinity(), bounce);
+    Vec2f impulse = RectangleObstacle::computeCollisionImpulse(v1, v2, r1, r2, normal, m_Mass,
+                                                               std::numeric_limits<float>::infinity(), m_Inertia,
+                                                               std::numeric_limits<float>::infinity(), bounce);
     addForceAtPosition(impulse / dt, position);
 }
 
-Vec2f RectangleObstacle::computeCollisionImpulse(Vec2f v1, Vec2f v2, Vec2f r1, Vec2f r2, Vec2f normal, float mass_1, float mass_2, float inertia_1,
-                                                 float inertia_2, float bounce) {
+Vec2f RectangleObstacle::computeCollisionImpulse(Vec2f v1, Vec2f v2, Vec2f r1, Vec2f r2, Vec2f normal, float mass_1,
+                                                 float mass_2, float inertia_1, float inertia_2, float bounce) {
     float vRelNeg = normal * (v1 - v2);
     if (vRelNeg > 0.0f) {
         return {0.0f, 0.0f};
@@ -257,7 +260,8 @@ Vec2f RectangleObstacle::computeCollisionImpulse(Vec2f v1, Vec2f v2, Vec2f r1, V
 }
 
 
-void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj, RectangleObstacle &faceObj, float dt) {
+void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleObstacle &vertexObj,
+                                              RectangleObstacle &faceObj, float dt) {
     float bounce = 0.9f;
 
     Vec2f collisionNormal = faceObj.getCollisionNormal(collisionVertex);
@@ -265,8 +269,9 @@ void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleOb
     Vec2f v2 = faceObj.getVelocityFromPosition(collisionVertex[0], collisionVertex[1]);
     Vec2f r1 = collisionVertex - vertexObj.m_Position;
     Vec2f r2 = collisionVertex - faceObj.m_Position;
-    Vec2f impulse = RectangleObstacle::computeCollisionImpulse(
-        v1, v2, r1, r2, collisionNormal, vertexObj.m_Mass, faceObj.m_Mass, vertexObj.m_Inertia, faceObj.m_Inertia, bounce);
+    Vec2f impulse =
+            RectangleObstacle::computeCollisionImpulse(v1, v2, r1, r2, collisionNormal, vertexObj.m_Mass,
+                                                       faceObj.m_Mass, vertexObj.m_Inertia, faceObj.m_Inertia, bounce);
     vertexObj.addForceAtPosition(impulse / dt, collisionVertex);
     faceObj.addForceAtPosition(-impulse / dt, collisionVertex);
 
@@ -305,9 +310,9 @@ void RectangleObstacle::applyCollisionImpulse(Vec2f collisionVertex, RectangleOb
 }
 
 
-std::optional<Vec2f> RectangleObstacle::isCollidingWith(const RectangleObstacle& other) const {
+std::optional<Vec2f> RectangleObstacle::isCollidingWith(const RectangleObstacle &other) const {
     std::array<Vec2f, 4> vertices = getWorldSpaceVertices();
-    for (const auto& v : vertices) {
+    for (const auto &v: vertices) {
         if (other.isInside(v[0], v[1])) {
             return v;
         }
@@ -316,7 +321,7 @@ std::optional<Vec2f> RectangleObstacle::isCollidingWith(const RectangleObstacle&
 }
 
 // Modifies object positions to approximated collision positions
-std::pair<Vec2f, bool> RectangleObstacle::bisection(float dt, RectangleObstacle& o1, RectangleObstacle& o2) {
+std::pair<Vec2f, bool> RectangleObstacle::bisection(float dt, RectangleObstacle &o1, RectangleObstacle &o2) {
     float eps = 0.000001; // error we accept from collision time t
     float t0 = 0;
     float t = dt;
@@ -344,15 +349,17 @@ std::pair<Vec2f, bool> RectangleObstacle::bisection(float dt, RectangleObstacle&
         }
     }
 
-    if (isFromObject1) return {lastCollidingPos1, isFromObject1};
+    if (isFromObject1)
+        return {lastCollidingPos1, isFromObject1};
     return {lastCollidingPos2, isFromObject1};
 }
 
 std::array<Vec2f, 4> RectangleObstacle::getWorldSpaceVertices() const {
     return {
-        objectSpaceToWorldSpace(m_P1), // bottom-left
-        objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1])), // bottom-right
-        objectSpaceToWorldSpace(m_P2), // top-right
-        objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1]))  // top-left
+            objectSpaceToWorldSpace(m_P1), // bottom-left
+            objectSpaceToWorldSpace(Vec2f(m_P2[0], m_P1[1])), // bottom-right
+            objectSpaceToWorldSpace(m_P2), // top-right
+            objectSpaceToWorldSpace(Vec2f(m_P1[0], m_P2[1])) // top-left
     };
 }
+

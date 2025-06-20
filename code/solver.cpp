@@ -1,8 +1,10 @@
 #include <math.h>
 #include <stdlib.h>
 #include <vector>
+#include "ConjGradMatrix.h"
 #include "RectangleObstacle.h"
 #include "gfx/vec2.h"
+#include "linearSolver.h"
 
 #if defined(__APPLE__) && defined(__aarch64__)
 #include <GLUT/glut.h>
@@ -77,12 +79,9 @@ void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
     float sum = 0.0;
     Vec2f velocityAtPosition = 0;
 
-    if (obstacle_mask[IX(i, j)] && (
-        (b == 1 && i > 0 && !obstacle_mask[IX(i - 1, j)]) ||
-        (b == 1 && i < N + 1 && !obstacle_mask[IX(i + 1, j)]) ||
-        (b == 2 && j > 0 && !obstacle_mask[IX(i, j - 1)]) ||
-        (b == 2 && j < N + 1 && !obstacle_mask[IX(i, j + 1)])
-    )) {
+    if (obstacle_mask[IX(i, j)] &&
+        ((b == 1 && i > 0 && !obstacle_mask[IX(i - 1, j)]) || (b == 1 && i < N + 1 && !obstacle_mask[IX(i + 1, j)]) ||
+         (b == 2 && j > 0 && !obstacle_mask[IX(i, j - 1)]) || (b == 2 && j < N + 1 && !obstacle_mask[IX(i, j + 1)]))) {
         velocityAtPosition =
                 obstacle_mask[IX(i, j)]->getVelocityFromPosition(((float) i + 0.5) / N, ((float) j + 0.5) / N);
     }
@@ -110,10 +109,19 @@ void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
     END_FOR
 }
 
-void lin_solve(int N, int b, float *x, float *x0, float a, float c, RectangleObstacle **obstacle_mask) {
+void lin_solve_cg(int N, int b, float *x, float *x0, float a, float c, RectangleObstacle **obstacle_mask) {
+    ConjGradMatrix mat(a, c, N);
+    int steps = 0;
+    ConjGrad((N + 2) * (N + 2), &mat, x, x0, 0.001, &steps);
+    std::cout << steps << std::endl;
+    set_bnd(N, b, x, obstacle_mask);
+}
+
+void lin_solve(int N, int b, float *x, float *x0, float a, float c, RectangleObstacle **obstacle_mask,
+               int iterations = 45) {
     int i, j, k;
 
-    for (k = 0; k < 45; k++) {
+    for (k = 0; k < iterations; k++) {
         FOR_EACH_CELL
         x[IX(i, j)] = (x0[IX(i, j)] + a * (x[IX(i - 1, j)] + x[IX(i + 1, j)] + x[IX(i, j - 1)] + x[IX(i, j + 1)])) / c;
         END_FOR
@@ -123,7 +131,7 @@ void lin_solve(int N, int b, float *x, float *x0, float a, float c, RectangleObs
 
 void diffuse(int N, int b, float *x, float *x0, float diff, float dt, RectangleObstacle **obstacle_mask) {
     float a = dt * diff * N * N;
-    lin_solve(N, b, x, x0, a, 1 + 4 * a, obstacle_mask);
+    lin_solve(N, b, x, x0, a, 1 + 4 * a, obstacle_mask, 10);
 }
 
 void advect(int N, int b, float *d, float *d0, float *u, float *v, float dt, RectangleObstacle **obstacle_mask,
