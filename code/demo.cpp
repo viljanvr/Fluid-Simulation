@@ -17,10 +17,12 @@
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
+#include <chrono>
 #include <cmath>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
+#include <ostream>
 #include <sstream>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,7 +90,7 @@ static std::string ui_notification = "";
 static int n_iterations = 0;
 static std::chrono::high_resolution_clock::time_point start_time;
 
-static int scene_id = 1;
+static int scene_id = 5;
 
 /*
   ----------------------------------------------------------------------
@@ -133,6 +135,9 @@ static void clear_data(void) {
         delete o;
     }
     obstacles.clear();
+
+    n_iterations = 0;
+    start_time = std::chrono::high_resolution_clock::now();
 }
 
 static int allocate_data(void) {
