@@ -109,14 +109,16 @@ void set_bnd(int N, int b, float *x, RectangleObstacle **obstacle_mask) {
     END_FOR
 }
 
+
+// Experimental conjugate gradient solver that we never got to work
 void lin_solve_cg(int N, int b, float *x, float *x0, float a, float c, RectangleObstacle **obstacle_mask) {
     ConjGradMatrix mat(a, c, N);
     int steps = 0;
     ConjGrad((N + 2) * (N + 2), &mat, x, x0, 0.001, &steps);
-    std::cout << steps << std::endl;
     set_bnd(N, b, x, obstacle_mask);
 }
 
+// Gauss-Seidel solver
 void lin_solve(int N, int b, float *x, float *x0, float a, float c, RectangleObstacle **obstacle_mask,
                int iterations = 45) {
     int i, j, k;

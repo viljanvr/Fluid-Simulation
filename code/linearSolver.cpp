@@ -1,3 +1,7 @@
+// ----------------------------
+// Code from assignment 1
+// -----------------------------
+
 #include "linearSolver.h"
 
 // vector helper functions
@@ -32,8 +36,8 @@ float vecDot(int n, float v1[], float v2[]) {
 float vecSqrLen(int n, float v[]) { return vecDot(n, v, v); }
 
 float ConjGrad(int n, implicitMatrix *A, float x[], float b[],
-                float epsilon, // how low should we go?
-                int *steps) {
+               float epsilon, // how low should we go?
+               int *steps) {
     int i, iMax;
     float alpha, beta, rSqrLen, rSqrLenOld, u;
 
