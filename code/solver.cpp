@@ -120,7 +120,7 @@ void lin_solve_cg(int N, int b, float *x, float *x0, float a, float c, Rectangle
 
 // Gauss-Seidel solver
 void lin_solve(int N, int b, float *x, float *x0, float a, float c, RectangleObstacle **obstacle_mask,
-               int iterations = 45) {
+               int iterations = 35) {
     int i, j, k;
 
     for (k = 0; k < iterations; k++) {
@@ -241,12 +241,12 @@ void add_vorticity_conf_forces(int N, float *u, float *v, float *curl, float eps
     int i, j;
 
     FOR_EACH_CELL
-    curl[IX(i, j)] = 0.5f * (v[IX(i + 1, j)] - v[IX(i - 1, j)] - u[IX(i, j + 1)] + u[IX(i, j - 1)]) / N;
+    curl[IX(i, j)] = 0.5f * (v[IX(i + 1, j)] - v[IX(i - 1, j)] - u[IX(i, j + 1)] + u[IX(i, j - 1)]) * N;
     END_FOR
 
     FOR_EACH_CELL
-    float x = 0.5f * (abs(curl[IX(i + 1, j)]) - abs(curl[IX(i - 1, j)])) / N;
-    float y = 0.5f * (abs(curl[IX(i, j + 1)]) - abs(curl[IX(i, j - 1)])) / N;
+    float x = 0.5f * (abs(curl[IX(i + 1, j)]) - abs(curl[IX(i - 1, j)])) * N;
+    float y = 0.5f * (abs(curl[IX(i, j + 1)]) - abs(curl[IX(i, j - 1)])) * N;
     float len = sqrt(x * x + y * y);
     if (len < 1e-6f) {
         continue;

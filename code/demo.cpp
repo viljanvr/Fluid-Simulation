@@ -60,7 +60,7 @@ static int N;
 static float dt, diff, visc;
 static float force, source;
 static int dvel;
-static float vorticity_conf_epsilon = 160;
+static float vorticity_conf_epsilon = 0.05;
 static bool vorticity_conf_enabled = true;
 static bool temp_enabled = false;
 static bool pressure_force_enabled = true;
